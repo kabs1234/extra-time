@@ -76,6 +76,11 @@ class Choice(TimestampedModel):
     def __str__(self) -> str:
         return self.text
 
+    @property
+    def author_id(self) -> int:
+        """A choice belongs to whoever wrote its question."""
+        return self.question.author_id
+
 
 class QuizAttempt(TimestampedModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="attempts")
