@@ -54,15 +54,17 @@ export function buildQuery(params: QueryParams = {}): string {
   return query ? `?${query}` : '';
 }
 
+/**
+ * Field errors from a 400 body, one flat list of messages per field. DRF nests errors for
+ * nested data (`{"choices": {"2": {"text": [...]}}}`), so nested messages are collected too.
+ */
 export function getFieldErrors(error: unknown): FieldErrors {
-  if (
-    !(error instanceof ApiError) ||
-    error.status !== HTTP_BAD_REQUEST ||
-    !isFieldErrors(error.body)
-  ) {
+  if (!(error instanceof ApiError) || error.status !== HTTP_BAD_REQUEST || !isRecord(error.body)) {
     return {};
   }
-  return error.body;
+  return Object.fromEntries(
+    Object.entries(error.body).map(([field, value]) => [field, [...new Set(collectMessages(value))]]),
+  );
 }
 
 /** The message to show above a form: `non_field_errors`/`detail`, or anything that isn't a field error. */
@@ -127,12 +129,18 @@ async function readBody(response: Response): Promise<unknown> {
   }
 }
 
-function isFieldErrors(body: unknown): body is FieldErrors {
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    Object.values(body).every((messages) => Array.isArray(messages))
-  );
+function collectMessages(value: unknown): ReadonlyArray<string> {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap(collectMessages);
+  }
+  return isRecord(value) ? Object.values(value).flatMap(collectMessages) : [];
+}
+
+function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function describeFailure(status: number, body: unknown): string {
