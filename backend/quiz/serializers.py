@@ -3,8 +3,9 @@ from collections.abc import Sequence
 from django.db import transaction
 from rest_framework import serializers
 
-from quiz.models import Choice, Era, Question, Topic
+from quiz.models import AttemptAnswer, Choice, Era, Question, QuizAttempt, Topic
 from quiz.permissions import can_see_answers
+from quiz.scoring import create_attempt
 
 MIN_CHOICES = 2
 MAX_CHOICES = 4
@@ -81,9 +82,12 @@ class QuestionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
         return choices
 
+    def shows_answers(self, question: Question) -> bool:
+        return can_see_answers(self.context["request"].user, question)
+
     def to_representation(self, question: Question) -> dict:
         data = super().to_representation(question)
-        if can_see_answers(self.context["request"].user, question):
+        if self.shows_answers(question):
             return data
         hidden = {field: value for field, value in data.items() if field != "explanation"}
         hidden["choices"] = [without_answer(choice) for choice in data["choices"]]
@@ -134,3 +138,81 @@ class ChoiceSerializer(serializers.ModelSerializer):
         if can_see_answers(self.context["request"].user, choice.question):
             return data
         return without_answer(data)
+
+
+class QuizQuestionSerializer(QuestionSerializer):
+    """A question served for play: never carries the answer, even to staff."""
+
+    def shows_answers(self, question: Question) -> bool:
+        return False
+
+
+class QuizParamsSerializer(serializers.Serializer):
+    era = serializers.PrimaryKeyRelatedField(queryset=Era.objects.all(), required=False)
+    topic = serializers.PrimaryKeyRelatedField(queryset=Topic.objects.all(), required=False)
+    count = serializers.IntegerField(required=False, default=10)
+
+
+class AnswerInputSerializer(serializers.Serializer):
+    question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.prefetch_related("choices"))
+    choice = serializers.PrimaryKeyRelatedField(queryset=Choice.objects.all(), allow_null=True)
+
+    def validate(self, attrs: dict) -> dict:
+        choice = attrs["choice"]
+        if choice is not None and choice.question_id != attrs["question"].id:
+            raise serializers.ValidationError({"choice": "This choice belongs to a different question."})
+        return attrs
+
+
+class AttemptCreateSerializer(serializers.Serializer):
+    era = serializers.PrimaryKeyRelatedField(queryset=Era.objects.all(), required=False, allow_null=True)
+    topic = serializers.PrimaryKeyRelatedField(queryset=Topic.objects.all(), required=False, allow_null=True)
+    answers = AnswerInputSerializer(many=True, allow_empty=False)
+
+    def validate_answers(self, answers: list[dict]) -> list[dict]:
+        question_ids = [answer["question"].id for answer in answers]
+        if len(set(question_ids)) != len(question_ids):
+            raise serializers.ValidationError("Each question can be answered only once.")
+        player = self.context["request"].user
+        if any(answer["question"].author_id == player.id for answer in answers):
+            raise serializers.ValidationError("You cannot score points on your own questions.")
+        return answers
+
+    def create(self, validated_data: dict) -> QuizAttempt:
+        return create_attempt(
+            self.context["request"].user,
+            era=validated_data.get("era"),
+            topic=validated_data.get("topic"),
+            answers=[(answer["question"], answer["choice"]) for answer in validated_data["answers"]],
+        )
+
+
+class AttemptAnswerSerializer(serializers.ModelSerializer):
+    explanation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AttemptAnswer
+        fields = ["question", "question_text", "chosen_text", "correct_text", "is_correct", "explanation"]
+
+    def get_explanation(self, answer: AttemptAnswer) -> str:
+        return answer.question.explanation if answer.question else ""
+
+
+class AttemptSerializer(serializers.ModelSerializer):
+    era_name = serializers.CharField(source="era.name", read_only=True, allow_null=True)
+    topic_name = serializers.CharField(source="topic.name", read_only=True, allow_null=True)
+    percent = serializers.IntegerField(read_only=True)
+    answers = AttemptAnswerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QuizAttempt
+        fields = ["id", "era_name", "topic_name", "score", "total", "percent", "created_at", "answers"]
+
+
+class LeaderboardRowSerializer(serializers.Serializer):
+    rank = serializers.IntegerField()
+    username = serializers.CharField()
+    favorite_club = serializers.CharField()
+    attempts = serializers.IntegerField()
+    total_correct = serializers.IntegerField()
+    best_score_pct = serializers.IntegerField()
