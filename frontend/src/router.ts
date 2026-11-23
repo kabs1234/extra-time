@@ -1,10 +1,18 @@
-import { createRouter, createWebHistory, type RouteLocationRaw } from 'vue-router';
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+  type RouteLocationRaw,
+} from 'vue-router';
 
 import { initSession, isLoggedIn } from '@/auth/session';
 import HomeView from '@/views/HomeView.vue';
+import LeaderboardView from '@/views/LeaderboardView.vue';
 import LoginView from '@/views/LoginView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import ProfileView from '@/views/ProfileView.vue';
+import QuestionListView from '@/views/QuestionListView.vue';
+import QuestionView from '@/views/QuestionView.vue';
 import SignupView from '@/views/SignupView.vue';
 
 declare module 'vue-router' {
@@ -19,6 +27,9 @@ export const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
   routes: [
     { path: '/', name: 'home', component: HomeView },
+    { path: '/questions', name: 'questions', component: QuestionListView },
+    { path: '/questions/:id(\\d+)', name: 'question', component: QuestionView, props: readIdParam },
+    { path: '/leaderboard', name: 'leaderboard', component: LeaderboardView },
     { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
     { path: '/signup', name: 'signup', component: SignupView, meta: { guestOnly: true } },
     { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
@@ -36,3 +47,7 @@ router.beforeEach(async (to): Promise<RouteLocationRaw | true> => {
   }
   return true;
 });
+
+function readIdParam(route: RouteLocationNormalized): { id: number } {
+  return { id: Number(route.params.id) };
+}
