@@ -6,6 +6,7 @@ import type {
   LeaderboardRow,
   Page,
   Question,
+  QuestionInput,
   QuizFilters,
   Topic,
 } from '@/api/types';
@@ -22,6 +23,22 @@ export async function listTopics(): Promise<ReadonlyArray<Topic>> {
 
 export function listQuestions(page = 1): Promise<Page<Question>> {
   return requestJson<Page<Question>>(`/questions/${buildQuery({ page })}`);
+}
+
+export function listMyQuestions(page = 1): Promise<Page<Question>> {
+  return requestJson<Page<Question>>(`/questions/${buildQuery({ mine: 'true', page })}`);
+}
+
+export function createQuestion(input: QuestionInput): Promise<Question> {
+  return requestJson<Question>('/questions/', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateQuestion(id: number, input: QuestionInput): Promise<Question> {
+  return requestJson<Question>(`/questions/${id}/`, { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export function deleteQuestion(id: number): Promise<void> {
+  return requestEmpty(`/questions/${id}/`, { method: 'DELETE' });
 }
 
 export function getQuestion(id: number): Promise<Question> {

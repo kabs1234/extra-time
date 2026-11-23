@@ -9,6 +9,8 @@ import { initSession, isLoggedIn } from '@/auth/session';
 import HomeView from '@/views/HomeView.vue';
 import LeaderboardView from '@/views/LeaderboardView.vue';
 import LoginView from '@/views/LoginView.vue';
+import MyQuestionFormView from '@/views/MyQuestionFormView.vue';
+import MyQuestionListView from '@/views/MyQuestionListView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
 import PlayView from '@/views/PlayView.vue';
 import ProfileView from '@/views/ProfileView.vue';
@@ -41,6 +43,25 @@ export const router = createRouter({
       path: '/results/:id(\\d+)',
       name: 'result',
       component: ResultView,
+      props: readIdParam,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/my-questions',
+      name: 'my-questions',
+      component: MyQuestionListView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/my-questions/new',
+      name: 'my-question-new',
+      component: MyQuestionFormView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/my-questions/:id(\\d+)/edit',
+      name: 'my-question-edit',
+      component: MyQuestionFormView,
       props: readIdParam,
       meta: { requiresAuth: true },
     },

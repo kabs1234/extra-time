@@ -99,7 +99,7 @@ export type QuestionInput = {
   readonly text: string;
   readonly difficulty: Difficulty;
   readonly explanation: string;
-  readonly era: number;
+  readonly era: number | null;
   readonly topics: ReadonlyArray<number>;
   readonly choices: ReadonlyArray<ChoiceInput>;
 };
