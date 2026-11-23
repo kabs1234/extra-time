@@ -28,6 +28,16 @@ services:
       - quiz-net
     restart: unless-stopped
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - quiz-net
+    restart: unless-stopped
+
 networks:
   quiz-net:
     driver: bridge
