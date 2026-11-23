@@ -53,6 +53,15 @@ class TokenFlowTests(APITestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_failed_login_keeps_existing_session_cookie(self) -> None:
+        self.login()
+
+        response = self.client.post("/api/auth/login/", {"username": "player", "password": "wrong"}, format="json")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn(COOKIE, response.cookies)
+        self.assertEqual(self.client.post("/api/auth/refresh/").status_code, 200)
+
     def test_refresh_with_cookie_returns_new_access_and_rotates(self) -> None:
         old_refresh = self.login()
 

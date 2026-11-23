@@ -40,7 +40,12 @@ def response_with_new_tokens(user: User, body: dict) -> Response:
 
 
 def unauthorized(detail: str) -> Response:
-    response = Response({"detail": detail}, status=status.HTTP_401_UNAUTHORIZED)
+    return Response({"detail": detail}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+def refresh_rejected() -> Response:
+    """A dead refresh cookie is useless to the browser, so drop it along with the 401."""
+    response = unauthorized(INVALID_REFRESH)
     clear_refresh_cookie(response)
     return response
 
@@ -74,12 +79,12 @@ class RefreshView(generics.GenericAPIView):
     def post(self, request: Request) -> Response:
         refresh = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not refresh:
-            return unauthorized(INVALID_REFRESH)
+            return refresh_rejected()
         serializer = TokenRefreshSerializer(data={"refresh": refresh})
         try:
             serializer.is_valid(raise_exception=True)
         except (TokenError, AuthenticationFailed):
-            return unauthorized(INVALID_REFRESH)
+            return refresh_rejected()
         response = Response({"access": serializer.validated_data["access"]})
         set_refresh_cookie(response, serializer.validated_data["refresh"])
         return response
