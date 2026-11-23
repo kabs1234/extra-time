@@ -43,6 +43,11 @@ defineProps<{
   background: var(--surface);
 }
 
+.field :slotted(input),
+.field :slotted(select) {
+  height: 2.75rem;
+}
+
 .field :slotted(textarea) {
   font-family: var(--font-body);
   line-height: 1.55;

@@ -1,9 +1,12 @@
 import { buildQuery, requestEmpty, requestJson } from '@/api/client';
 import type {
+  AccessToken,
   Attempt,
   AttemptInput,
   Era,
   LeaderboardRow,
+  Me,
+  MeInput,
   Page,
   Question,
   QuestionInput,
@@ -67,4 +70,23 @@ export function getAttempt(id: number): Promise<Attempt> {
 
 export function deleteAttempt(id: number): Promise<void> {
   return requestEmpty(`/attempts/${id}/`, { method: 'DELETE' });
+}
+
+export function getMe(): Promise<Me> {
+  return requestJson<Me>('/me/');
+}
+
+export function updateMe(input: MeInput): Promise<Me> {
+  return requestJson<Me>('/me/', { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+export function changePassword(oldPassword: string, newPassword: string): Promise<AccessToken> {
+  return requestJson<AccessToken>('/me/password/', {
+    method: 'POST',
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  });
+}
+
+export function deleteMe(password: string): Promise<void> {
+  return requestEmpty('/me/', { method: 'DELETE', body: JSON.stringify({ password }) });
 }
