@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, ref } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
 
 import { getErrorMessage } from '@/api/client';
-import { getMe } from '@/api/resources';
+import { getMe, listAttempts } from '@/api/resources';
 import type { Me } from '@/api/types';
 import { logout, setCurrentUser } from '@/auth/session';
 import DeleteAccount from '@/components/DeleteAccount.vue';
@@ -13,8 +13,12 @@ import ProfileForm from '@/components/ProfileForm.vue';
 import { useAsync } from '@/composables/useAsync';
 import { formatDate } from '@/format';
 
+const RECENT_ROUNDS = 3;
+
 const router = useRouter();
 const me = useAsync(loadMe);
+const attempts = useAsync(() => listAttempts());
+const recentAttempts = computed(() => (attempts.data.value?.results ?? []).slice(0, RECENT_ROUNDS));
 const logoutError = ref<string>();
 
 async function loadMe(): Promise<Me> {
@@ -71,6 +75,22 @@ async function handleLogout(): Promise<void> {
           </div>
         </dl>
       </header>
+      <section class="recent" aria-labelledby="recent-heading">
+        <h2 id="recent-heading">Recent rounds</h2>
+        <LoadState :is-loading="attempts.isLoading.value" :error="attempts.error.value" @retry="attempts.reload">
+          <p v-if="!recentAttempts.length">No rounds yet. <RouterLink to="/play">Play your first quiz</RouterLink>.</p>
+          <ul v-else class="ruled-list">
+            <li v-for="attempt in recentAttempts" :key="attempt.id">
+              <RouterLink :to="{ name: 'result', params: { id: attempt.id } }">
+                {{ attempt.score }} of {{ attempt.total }} in
+                {{ [attempt.era_name, attempt.topic_name].filter(Boolean).join(', ') || 'all of football history' }}
+              </RouterLink>
+              <span class="recent-date">{{ formatDate(attempt.created_at) }}</span>
+            </li>
+          </ul>
+          <p v-if="recentAttempts.length"><RouterLink to="/results">See all my results</RouterLink></p>
+        </LoadState>
+      </section>
       <div class="profile-forms">
         <ProfileForm :me="me.data.value" @saved="handleSaved" />
         <PasswordForm />
@@ -112,6 +132,24 @@ async function handleLogout(): Promise<void> {
 .stats dd {
   margin: var(--space-1) 0 0;
   font-size: 2.75rem;
+}
+
+.recent {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 44rem;
+}
+
+.recent li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.recent-date {
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .profile-forms {
