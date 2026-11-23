@@ -1,5 +1,14 @@
-import { buildQuery, requestJson } from '@/api/client';
-import type { Era, LeaderboardRow, Page, Question, Topic } from '@/api/types';
+import { buildQuery, requestEmpty, requestJson } from '@/api/client';
+import type {
+  Attempt,
+  AttemptInput,
+  Era,
+  LeaderboardRow,
+  Page,
+  Question,
+  QuizFilters,
+  Topic,
+} from '@/api/types';
 
 export async function listEras(): Promise<ReadonlyArray<Era>> {
   const page = await requestJson<Page<Era>>('/eras/');
@@ -21,4 +30,24 @@ export function getQuestion(id: number): Promise<Question> {
 
 export function getLeaderboard(): Promise<ReadonlyArray<LeaderboardRow>> {
   return requestJson<ReadonlyArray<LeaderboardRow>>('/leaderboard/');
+}
+
+export function startQuiz(filters: QuizFilters): Promise<ReadonlyArray<Question>> {
+  return requestJson<ReadonlyArray<Question>>(`/quiz/${buildQuery(filters)}`);
+}
+
+export function submitAttempt(input: AttemptInput): Promise<Attempt> {
+  return requestJson<Attempt>('/attempts/', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function listAttempts(page = 1): Promise<Page<Attempt>> {
+  return requestJson<Page<Attempt>>(`/attempts/${buildQuery({ page })}`);
+}
+
+export function getAttempt(id: number): Promise<Attempt> {
+  return requestJson<Attempt>(`/attempts/${id}/`);
+}
+
+export function deleteAttempt(id: number): Promise<void> {
+  return requestEmpty(`/attempts/${id}/`, { method: 'DELETE' });
 }

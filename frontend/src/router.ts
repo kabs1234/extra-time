@@ -10,9 +10,12 @@ import HomeView from '@/views/HomeView.vue';
 import LeaderboardView from '@/views/LeaderboardView.vue';
 import LoginView from '@/views/LoginView.vue';
 import NotFoundView from '@/views/NotFoundView.vue';
+import PlayView from '@/views/PlayView.vue';
 import ProfileView from '@/views/ProfileView.vue';
 import QuestionListView from '@/views/QuestionListView.vue';
 import QuestionView from '@/views/QuestionView.vue';
+import ResultListView from '@/views/ResultListView.vue';
+import ResultView from '@/views/ResultView.vue';
 import SignupView from '@/views/SignupView.vue';
 
 declare module 'vue-router' {
@@ -32,6 +35,15 @@ export const router = createRouter({
     { path: '/leaderboard', name: 'leaderboard', component: LeaderboardView },
     { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
     { path: '/signup', name: 'signup', component: SignupView, meta: { guestOnly: true } },
+    { path: '/play', name: 'play', component: PlayView, meta: { requiresAuth: true } },
+    { path: '/results', name: 'results', component: ResultListView, meta: { requiresAuth: true } },
+    {
+      path: '/results/:id(\\d+)',
+      name: 'result',
+      component: ResultView,
+      props: readIdParam,
+      meta: { requiresAuth: true },
+    },
     { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
     { path: '/:path(.*)*', name: 'not-found', component: NotFoundView },
   ],
