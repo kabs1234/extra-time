@@ -1,0 +1,12 @@
+[
+  {"name": "World Cups", "slug": "world-cups", "description": "FIFA World Cup tournaments since 1930."},
+  {"name": "European Cup & Champions League", "slug": "european-cup", "description": "Europe's top club competition, from 1955 to today."},
+  {"name": "Legends", "slug": "legends", "description": "The players whose names outlived their careers."},
+  {"name": "Clubs", "slug": "clubs", "description": "Club histories, firsts and famous seasons."},
+  {"name": "Rules & Laws", "slug": "rules", "description": "How the Laws of the Game changed over time."},
+  {"name": "Stadiums", "slug": "stadiums", "description": "Grounds, famous matches played in them and how they changed."},
+  {"name": "Managers", "slug": "managers", "description": "Coaches and the tactics they made famous."},
+  {"name": "International Football", "slug": "international", "description": "National teams outside the World Cup: Olympics, Euros and friendlies."},
+  {"name": "Women's Football", "slug": "womens", "description": "The women's game, from the 1920s boom to sold-out stadiums."},
+  {"name": "Transfers & Business", "slug": "business", "description": "Leagues, money, transfers and the rulings that shaped them."}
+]

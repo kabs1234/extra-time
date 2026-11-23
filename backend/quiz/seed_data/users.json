@@ -1,0 +1,12 @@
+[
+  {"username": "curator", "is_staff": true, "profile": {"favorite_club": "Sheffield FC", "country": "England", "bio": "Keeps the question bank honest. Football historian since the first FA Cup."}},
+  {"username": "tifosi_luca", "profile": {"favorite_club": "Juventus", "country": "Italy", "bio": "Catenaccio is an art form."}},
+  {"username": "kop_end_sam", "profile": {"favorite_club": "Liverpool", "country": "England", "bio": "Still not over Istanbul 2005, in the best way."}},
+  {"username": "ultras_ana", "profile": {"favorite_club": "Benfica", "country": "Portugal", "bio": "Eusébio posters on every wall."}},
+  {"username": "kaiser_jonas", "profile": {"favorite_club": "Bayern Munich", "country": "Germany", "bio": "Beckenbauer fan, sweeper-system defender."}},
+  {"username": "porteno_mateo", "profile": {"favorite_club": "Boca Juniors", "country": "Argentina", "bio": "La Bombonera on Sundays, history books on Mondays."}},
+  {"username": "samba_bia", "profile": {"favorite_club": "Flamengo", "country": "Brazil", "bio": "Five stars on the shirt and counting."}},
+  {"username": "oranje_daan", "profile": {"favorite_club": "Ajax", "country": "Netherlands", "bio": "Total Football or nothing."}},
+  {"username": "culer_marta", "profile": {"favorite_club": "Barcelona", "country": "Spain", "bio": "Més que un club."}},
+  {"username": "almaty_arman", "profile": {"favorite_club": "Kairat", "country": "Kazakhstan", "bio": "Learning football history one quiz at a time."}}
+]

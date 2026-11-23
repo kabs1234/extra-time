@@ -1,0 +1,15 @@
+[
+  {"user": "tifosi_luca", "era": "The First World Cups", "answers": [["first-world-cup", "right"], ["pozzo", "right"], ["no-world-cup-1942", "right"], ["wm-formation", "wrong"], ["fa-founded", "right"]]},
+  {"user": "tifosi_luca", "topic": "european-cup", "answers": [["real-madrid-five", "right"], ["lisbon-lions", "wrong"], ["ajax-three", "right"], ["bayern-three", "right"], ["sacchi-milan", "right"], ["istanbul-2005", "right"]]},
+  {"user": "kop_end_sam", "topic": "european-cup", "answers": [["istanbul-2005", "right"], ["united-treble", "right"], ["real-madrid-five", "right"], ["lisbon-lions", "right"], ["ajax-three", "skip"]]},
+  {"user": "kop_end_sam", "era": "Stars and Tragedies", "answers": [["hillsborough", "right"], ["back-pass-rule", "right"], ["hand-of-god", "right"], ["sacchi-milan", "wrong"], ["first-womens-world-cup", "wrong"]]},
+  {"user": "ultras_ana", "answers": [["real-madrid-five", "right"], ["pele-1958", "right"], ["euro-2000-golden-goal", "wrong"], ["bosman", "right"], ["var-2018", "right"], ["spain-2023", "right"], ["fifa-founded", "wrong"], ["maracanazo", "right"], ["cards-1970", "skip"], ["iniesta-2010", "right"]]},
+  {"user": "kaiser_jonas", "topic": "world-cups", "answers": [["miracle-of-bern", "right"], ["hurst-hat-trick", "right"], ["mineirazo", "right"], ["fontaine-13", "wrong"], ["jules-rimet", "right"], ["world-cup-48", "right"]]},
+  {"user": "kaiser_jonas", "era": "Total Football", "answers": [["bayern-three", "right"], ["michels", "right"], ["ajax-three", "right"], ["cards-1970", "right"], ["lisbon-lions", "right"]]},
+  {"user": "porteno_mateo", "topic": "legends", "answers": [["hand-of-god", "right"], ["argentina-2022", "right"], ["messi-ballon-dor", "right"], ["first-ballon-dor", "wrong"], ["yashin", "wrong"]]},
+  {"user": "samba_bia", "era": "Post-war Golden Age", "answers": [["maracanazo", "right"], ["pele-1958", "right"], ["miracle-of-bern", "wrong"], ["hungary-wembley", "skip"], ["fontaine-13", "right"]]},
+  {"user": "oranje_daan", "topic": "rules", "answers": [["fa-founded", "right"], ["penalty-kick", "right"], ["offside-1925", "right"], ["goal-nets", "wrong"], ["back-pass-rule", "right"], ["var-2018", "right"], ["cards-1970", "right"]]},
+  {"user": "culer_marta", "era": "Tiki-taka and Superclubs", "answers": [["iniesta-2010", "right"], ["guardiola-sextuple", "right"], ["mineirazo", "right"], ["japan-2011", "wrong"], ["spain-2023", "right"]]},
+  {"user": "almaty_arman", "answers": [["first-world-cup", "right"], ["fifa-founded", "wrong"], ["premier-league-start", "right"], ["neymar-fee", "wrong"], ["world-cup-48", "right"]]},
+  {"user": "almaty_arman", "topic": "womens", "answers": [["first-womens-world-cup", "right"], ["womens-ban", "wrong"], ["japan-2011", "right"], ["spain-2023", "right"]]}
+]
