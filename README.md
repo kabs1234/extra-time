@@ -86,7 +86,7 @@ The passwords come from `SEED_PASSWORD`, `ADMIN_USERNAME` and `ADMIN_PASSWORD` i
  | +-----------------------+   /api/  /admin/   +------------------------+     |
  | | frontend              |   /static/         | backend                |     |
  | | nginx:1.27-alpine     | -----------------> | Django 5.2 + DRF       |     |
- | | serves the Vue build, |  http://backend:8000 | simplejwt, :8000     |     |
+ | | serves the Vue build, |    backend:8000    | simplejwt, :8000       |     |
  | | SPA fallback          |                    | entrypoint: migrate -> |     |
  | +-----------------------+                    | seed -> runserver      |     |
  |                                              +-----------+------------+     |
@@ -100,7 +100,7 @@ The passwords come from `SEED_PASSWORD`, `ADMIN_USERNAME` and `ADMIN_PASSWORD` i
                                                  named volume pgdata
 ```
 
-- The browser only ever talks to `localhost:8080`. nginx serves the app and forwards API calls, so the SPA and the API share one origin: no CORS setup, and the `SameSite=Strict` refresh cookie is sent normally.
+- The browser only ever talks to `localhost:8080`. nginx serves the app and forwards API calls, so the app and the API share one origin.
 - nginx resolves `backend` through Docker's DNS on every request, so it starts even when the backend is down and answers `502` within a few seconds instead of hanging.
 - The backend waits for the database healthcheck (`depends_on: condition: service_healthy`). The database port is not published to the host.
 - `pgdata` keeps the data across `docker compose down`; only `down -v` deletes it.
@@ -119,7 +119,7 @@ All models have `created_at` and `updated_at`. Users are Django's built-in `User
 | `QuizAttempt` | `user`, `era` (optional), `topic` (optional), `score`, `total` | **N:1** `User`; **M:N** with `Question` through `AttemptAnswer` |
 | `AttemptAnswer` | `attempt`, `question`, `choice` (empty = skipped), `is_correct`, `question_text`, `chosen_text`, `correct_text` | Through model of attempt ↔ question; unique per (attempt, question) |
 
-Rules enforced by the API: an era can't end before it starts; a question always has 2–4 choices with exactly one correct (also when a single choice is added, changed or deleted through `/api/choices/`); a chosen answer must belong to its question; players can't answer their own questions.
+Rules enforced by the API and the Django admin: an era can't end before it starts; a question always has 2–4 choices with exactly one correct (also when a single choice is added, changed or deleted through `/api/choices/`), and a choice can't move to another question; a chosen answer must belong to its question, and one whose choice was deleted since (the author edited the question mid-round) counts as skipped; players can't answer their own questions.
 
 **Past rounds never change.** `AttemptAnswer` keeps a copy of the question text, the chosen answer and the correct answer, and its links to the question and choice become empty if those are deleted. Editing or deleting a question (or its era) therefore never changes a past score or result page.
 
@@ -169,7 +169,7 @@ Answers stay secret on the server: `is_correct` and `explanation` are only inclu
 
 - Routes carry `meta.requiresAuth` or `meta.guestOnly` (`frontend/src/router.ts`). Before the first navigation, the guard waits for `initSession()`, which calls `/api/auth/refresh/` once with the cookie and, if that works, loads `/api/me/`. So a reload on `/profile` restores the session before the guard decides, and the login page never flashes.
 - A logged-out visit to a protected route redirects to `/login?redirect=/that/path`; after logging in the app returns there. Logged-in users who open `/login` or `/signup` go to `/`.
-- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call: with rotation, a second refresh would send an already-blacklisted token and log the user out. If the refresh fails, the session is cleared and the user is sent to `/login?redirect=…`.
+- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call, and open tabs take turns through a Web Lock: with rotation, a second refresh with the same cookie would send an already-blacklisted token. If one slips through anyway, the server answers `401` but keeps the cookie, because the other tab may already hold its replacement. If the refresh fails, the session is cleared and the user is sent to `/login?redirect=…`.
 - This is what keeps a long quiz safe: if the access token expires while someone is answering, submitting the round refreshes the token silently and the answers are saved.
 
 ## Postman

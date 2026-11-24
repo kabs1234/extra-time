@@ -16,7 +16,7 @@ Base URL: `http://localhost:8000/api/` (or `http://localhost:8080/api/` through 
 |---|---|---|---|---|
 | `POST /auth/signup/` | public | `{username, password, favorite_club?, country?}` | `201 {id, username}`. Creates the user and their profile | `400` field errors (taken username; weak password from Django's validators) |
 | `POST /auth/login/` | public | `{username, password}` | `200 {access, user: Me}` and sets the refresh cookie | `401 {"detail": "Invalid username or password."}`. A failed login leaves an existing cookie alone |
-| `POST /auth/refresh/` | cookie | — | `200 {access}` and replaces the cookie with a new refresh token; the old one is blacklisted | `401` if the cookie is missing, invalid, expired or blacklisted; the cookie is deleted |
+| `POST /auth/refresh/` | cookie | — | `200 {access}` and replaces the cookie with a new refresh token; the old one is blacklisted | `401` if the cookie is missing, invalid, expired or blacklisted. The cookie is deleted, except when its token was rotated away by another tab's refresh |
 | `POST /auth/logout/` | cookie (optional) | — | `204`. Blacklists the cookie's refresh token and deletes the cookie | — |
 
 Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/`, `Max-Age` = refresh lifetime, `Secure` when `JWT_COOKIE_SECURE=1`. The refresh token never appears in a response body.
@@ -74,7 +74,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 |---|---|---|---|
 | `GET /choices/`, `GET /choices/{id}/` | public | `200` | `404` |
 | `POST /choices/` | access, author of the question or staff | `201 Choice` | `400 {"question": [...]}` if the question would no longer have 2–4 choices with exactly one correct; `401`; `403` |
-| `PUT`, `PATCH /choices/{id}/` | access, author of the question or staff | `200 Choice` | same as POST, plus `404` |
+| `PUT`, `PATCH /choices/{id}/` | access, author of the question or staff | `200 Choice` | same as POST, plus `400` for moving the choice to another question, and `404` |
 | `DELETE /choices/{id}/` | access, author of the question or staff | `204` | `400` if it would leave fewer than 2 choices or no correct one; `401`, `403`, `404` |
 
 ## Quiz
@@ -92,7 +92,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 | Method and path | Auth | Body | Success | Errors |
 |---|---|---|---|---|
 | `GET /attempts/` | access | — | `200` page of the caller's attempts, newest first (staff: everyone's) | `401` |
-| `POST /attempts/` | access | `{era?, topic?, answers: [{question: id, choice: id \| null}]}` | `201 Attempt`. Scored on the server and revealing the correct answers | `400` empty `answers`, a question answered twice, a choice from another question, or the caller's own question; `401` |
+| `POST /attempts/` | access | `{era?, topic?, answers: [{question: id, choice: id \| null}]}` | `201 Attempt`. Scored on the server and revealing the correct answers. A `choice` id that no longer exists counts as skipped | `400` empty `answers`, a question answered twice, a choice from another question, or the caller's own question; `401` |
 | `GET /attempts/{id}/` | access | — | `200 Attempt` | `401`; `404` for someone else's attempt |
 | `DELETE /attempts/{id}/` | access | — | `204` | `401`, `404` |
 | `PUT`, `PATCH /attempts/{id}/` | access | — | — | `405`: attempts can't be edited |
