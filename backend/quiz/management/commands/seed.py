@@ -22,10 +22,10 @@ CURATOR = "curator"
 
 
 class Command(BaseCommand):
-    help = "Load quiz/seed_data/*.json if the database has no eras yet."
+    help = "Load quiz/seed_data/*.json into a database that has no users and no eras yet."
 
     def handle(self, *args: str, **options: str) -> None:
-        if Era.objects.exists():
+        if User.objects.exists() or Era.objects.exists():
             self.stdout.write("Database already has data, skipping seed.")
             return
         seed_everything()

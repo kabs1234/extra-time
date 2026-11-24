@@ -36,3 +36,13 @@ class SeedTests(TestCase):
         self.assertTrue(User.objects.get(username="curator").is_staff)
         self.assertGreaterEqual(Question.objects.filter(author__is_staff=False).count(), 5)
         self.assertFalse(AttemptAnswer.objects.filter(question__author=F("attempt__user")).exists())
+
+
+class ReseedTests(TestCase):
+    def test_seed_after_every_era_is_deleted_neither_crashes_nor_reseeds(self) -> None:
+        call_command("seed", verbosity=0)
+        Era.objects.all().delete()
+
+        call_command("seed", verbosity=0)
+
+        self.assertFalse(Era.objects.exists())
