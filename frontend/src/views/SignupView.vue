@@ -33,7 +33,7 @@ async function handleSubmit(): Promise<void> {
 <template>
   <section class="stack">
     <h1>Sign up</h1>
-    <p class="lede">Make an account to save your scores and climb the leaderboard.</p>
+    <p class="lede">Make an account to save your scores and get on the leaderboard.</p>
     <form class="form" novalidate @submit.prevent="handleSubmit">
       <p v-if="formMessage" class="form-alert" role="alert">{{ formMessage }}</p>
       <FormField id="signup-username" label="Username" :errors="fieldErrors.username">

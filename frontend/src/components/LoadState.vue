@@ -6,7 +6,7 @@ defineEmits<{ retry: [] }>();
 <template>
   <p v-if="isLoading" class="load-state" role="status">Loading…</p>
   <div v-else-if="error" class="load-state load-state-error" role="alert">
-    <p>Couldn't load this page: {{ error }}</p>
+    <p>Couldn't load: {{ error }}</p>
     <slot name="error-hint"><p>Check that the backend is running, then try again.</p></slot>
     <button type="button" class="button button-quiet" @click="$emit('retry')">
       Try again
