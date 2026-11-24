@@ -192,14 +192,9 @@ class AttemptCreateSerializer(serializers.Serializer):
 
 
 class AttemptAnswerSerializer(serializers.ModelSerializer):
-    explanation = serializers.SerializerMethodField()
-
     class Meta:
         model = AttemptAnswer
         fields = ["question", "question_text", "chosen_text", "correct_text", "is_correct", "explanation"]
-
-    def get_explanation(self, answer: AttemptAnswer) -> str:
-        return answer.question.explanation if answer.question else ""
 
 
 class AttemptSerializer(serializers.ModelSerializer):

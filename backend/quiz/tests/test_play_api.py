@@ -179,7 +179,7 @@ class AttemptTests(PlayApiTestCase):
 
         answer = self.client.get(f"/api/attempts/{attempt_id}/").json()["answers"][0]
 
-        self.assertEqual((answer["question"], answer["question_text"], answer["explanation"]), (None, "Question 0", ""))
+        self.assertEqual((answer["question"], answer["question_text"], answer["explanation"]), (None, "Question 0", "Because of fact 0."))
 
 
 class LeaderboardTests(PlayApiTestCase):
@@ -250,3 +250,15 @@ class StaleRoundTests(PlayApiTestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual((response.json()["score"], response.json()["answers"][0]["correct_text"]), (0, ""))
+
+
+class ExplanationSnapshotTests(PlayApiTestCase):
+    def test_attempt_keeps_explanation_after_question_edit(self) -> None:
+        self.client.force_authenticate(self.player)
+        first = self.questions[0]
+        attempt_id = self.submit([{"question": first.id, "choice": self.right(first).id}]).json()["id"]
+        Question.objects.filter(pk=first.pk).update(explanation="Rewritten later.")
+
+        answer = self.client.get(f"/api/attempts/{attempt_id}/").json()["answers"][0]
+
+        self.assertEqual(answer["explanation"], "Because of fact 0.")

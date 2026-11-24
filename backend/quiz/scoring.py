@@ -34,4 +34,5 @@ def snapshot_answer(attempt: QuizAttempt, question: Question, choice: Choice | N
         question_text=question.text,
         chosen_text=choice.text if choice else "",
         correct_text=correct.text if correct else "",
+        explanation=question.explanation,
     )

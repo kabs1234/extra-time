@@ -113,6 +113,7 @@ class AttemptAnswer(TimestampedModel):
     question_text = models.TextField()
     chosen_text = models.CharField(max_length=200, blank=True)
     correct_text = models.CharField(max_length=200)
+    explanation = models.TextField(blank=True)
 
     class Meta:
         ordering = ["id"]
