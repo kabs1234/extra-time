@@ -84,3 +84,18 @@ class TokenFlowTests(APITestCase):
 
         self.client.cookies[COOKIE] = refresh
         self.assertEqual(self.client.post("/api/auth/refresh/").status_code, 401)
+
+
+class ParallelRefreshTests(APITestCase):
+    def test_refresh_with_already_rotated_cookie_keeps_the_newer_cookie(self) -> None:
+        User.objects.create_user("player", password=PASSWORD)
+        old_refresh = self.client.post(
+            "/api/auth/login/", {"username": "player", "password": PASSWORD}, format="json"
+        ).cookies[COOKIE].value
+        self.client.post("/api/auth/refresh/")
+        self.client.cookies[COOKIE] = old_refresh
+
+        response = self.client.post("/api/auth/refresh/")
+
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn(COOKIE, response.cookies)

@@ -15,6 +15,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.cookies import blacklist_all_for, clear_refresh_cookie, set_refresh_cookie
@@ -43,11 +44,25 @@ def unauthorized(detail: str) -> Response:
     return Response({"detail": detail}, status=status.HTTP_401_UNAUTHORIZED)
 
 
-def refresh_rejected() -> Response:
-    """A dead refresh cookie is useless to the browser, so drop it along with the 401."""
+def refresh_rejected(refresh: str | None) -> Response:
+    """
+    Drop a dead refresh cookie along with the 401, unless it was only rotated away: then another
+    tab refreshed first and the browser may already hold its successor, which must survive.
+    """
     response = unauthorized(INVALID_REFRESH)
-    clear_refresh_cookie(response)
+    if not is_rotated_away(refresh):
+        clear_refresh_cookie(response)
     return response
+
+
+def is_rotated_away(refresh: str | None) -> bool:
+    if not refresh:
+        return False
+    try:
+        token_id = RefreshToken(refresh, verify=False)["jti"]
+    except (TokenError, KeyError):
+        return False
+    return BlacklistedToken.objects.filter(token__jti=token_id).exists()
 
 
 class SignupView(generics.CreateAPIView):
@@ -79,12 +94,12 @@ class RefreshView(generics.GenericAPIView):
     def post(self, request: Request) -> Response:
         refresh = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not refresh:
-            return refresh_rejected()
+            return refresh_rejected(refresh)
         serializer = TokenRefreshSerializer(data={"refresh": refresh})
         try:
             serializer.is_valid(raise_exception=True)
         except (TokenError, AuthenticationFailed):
-            return refresh_rejected()
+            return refresh_rejected(refresh)
         response = Response({"access": serializer.validated_data["access"]})
         set_refresh_cookie(response, serializer.validated_data["refresh"])
         return response
