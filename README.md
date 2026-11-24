@@ -117,11 +117,11 @@ All models have `created_at` and `updated_at`. Users are Django's built-in `User
 | `Question` | `text`, `difficulty` (easy/medium/hard), `explanation`, `era`, `topics`, `author` | **N:1** `Era`, **N:1** `User` (author), **1:N** choices, **M:N** topics |
 | `Choice` | `question`, `text`, `is_correct` | **N:1** `Question`. Each question has 2–4 choices, exactly one correct |
 | `QuizAttempt` | `user`, `era` (optional), `topic` (optional), `score`, `total` | **N:1** `User`; **M:N** with `Question` through `AttemptAnswer` |
-| `AttemptAnswer` | `attempt`, `question`, `choice` (empty = skipped), `is_correct`, `question_text`, `chosen_text`, `correct_text` | Through model of attempt ↔ question; unique per (attempt, question) |
+| `AttemptAnswer` | `attempt`, `question`, `choice` (empty = skipped), `is_correct`, `question_text`, `chosen_text`, `correct_text`, `explanation` | Through model of attempt ↔ question; unique per (attempt, question) |
 
 Rules enforced by the API and the Django admin: an era can't end before it starts; a question always has 2–4 choices with exactly one correct (also when a single choice is added, changed or deleted through `/api/choices/`), and a choice can't move to another question; a chosen answer must belong to its question, and one whose choice was deleted since (the author edited the question mid-round) counts as skipped; players can't answer their own questions.
 
-**Past rounds never change.** `AttemptAnswer` keeps a copy of the question text, the chosen answer and the correct answer, and its links to the question and choice become empty if those are deleted. Editing or deleting a question (or its era) therefore never changes a past score or result page.
+**Past rounds never change.** `AttemptAnswer` keeps a copy of the question text, the chosen answer, the correct answer and the explanation, and its links to the question and choice become empty if those are deleted. Editing or deleting a question (or its era) therefore never changes a past score or result page.
 
 ## How auth works
 
@@ -169,7 +169,7 @@ Answers stay secret on the server: `is_correct` and `explanation` are only inclu
 
 - Routes carry `meta.requiresAuth` or `meta.guestOnly` (`frontend/src/router.ts`). Before the first navigation, the guard waits for `initSession()`, which calls `/api/auth/refresh/` once with the cookie and, if that works, loads `/api/me/`. So a reload on `/profile` restores the session before the guard decides, and the login page never flashes.
 - A logged-out visit to a protected route redirects to `/login?redirect=/that/path`; after logging in the app returns there. Logged-in users who open `/login` or `/signup` go to `/`.
-- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call, and open tabs take turns through a Web Lock: with rotation, a second refresh with the same cookie would send an already-blacklisted token. If one slips through anyway, the server answers `401` but keeps the cookie, because the other tab may already hold its replacement. If the refresh fails, the session is cleared and the user is sent to `/login?redirect=…`.
+- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call, and open tabs take turns through a Web Lock: with rotation, a second refresh with the same cookie would send an already-blacklisted token. If one slips through anyway, the server answers `401` but keeps the cookie, because the other tab may already hold its replacement. If the refresh fails, the session is cleared: on a protected page the user is sent to `/login?redirect=…`; on a public page the request is repeated without a token, so the page still loads.
 - This is what keeps a long quiz safe: if the access token expires while someone is answering, submitting the round refreshes the token silently and the answers are saved.
 
 ## Postman
@@ -194,7 +194,7 @@ The 62 requests run top to bottom, and every request has a status test (85 asser
 | Route | Access | Page |
 |---|---|---|
 | `/` | public | Intro, era timeline (each era starts a quiz on it), top 5 of the leaderboard |
-| `/questions`, `/questions/:id` | public | Question bank (paginated) and question detail without the answer |
+| `/questions`, `/questions/:id` | public | Question bank grouped by era, with era and topic filters; question detail without the answer |
 | `/leaderboard` | public | Top 20 players |
 | `/login`, `/signup` | guests only | Forms with errors under each field |
 | `/play` | login | Choose era, topic and length → one question at a time → score and explanations |

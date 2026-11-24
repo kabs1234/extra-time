@@ -73,7 +73,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 | Method and path | Auth | Success | Errors |
 |---|---|---|---|
 | `GET /choices/`, `GET /choices/{id}/` | public | `200` | `404` |
-| `POST /choices/` | access, author of the question or staff | `201 Choice` | `400 {"question": [...]}` if the question would no longer have 2–4 choices with exactly one correct; `401`; `403` |
+| `POST /choices/` | access, author of the question or staff | `201 Choice` | `400 {"question": [...]}` if the question would no longer have 2–4 choices with exactly one correct; `401`; `403` for anyone but the author or staff, checked first |
 | `PUT`, `PATCH /choices/{id}/` | access, author of the question or staff | `200 Choice` | same as POST, plus `400` for moving the choice to another question, and `404` |
 | `DELETE /choices/{id}/` | access, author of the question or staff | `204` | `400` if it would leave fewer than 2 choices or no correct one; `401`, `403`, `404` |
 
@@ -87,7 +87,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 
 `Attempt` = `{id, era_name, topic_name, score, total, percent, created_at, answers: [{question, question_text, chosen_text, correct_text, is_correct, explanation}]}`
 
-`question` is `null` and `explanation` is `""` once the question has been deleted; the texts are a snapshot taken when the round was submitted. `chosen_text` is `""` for a skipped question.
+The texts, `explanation` included, are a snapshot taken when the round was submitted, so later edits don't change them; `question` is `null` once the question has been deleted. `chosen_text` is `""` for a skipped question.
 
 | Method and path | Auth | Body | Success | Errors |
 |---|---|---|---|---|
