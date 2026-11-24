@@ -22,8 +22,8 @@ export function listTopics(): Promise<ReadonlyArray<Topic>> {
   return listEveryPage<Topic>('/topics/');
 }
 
-export function listQuestions(page = 1): Promise<Page<Question>> {
-  return requestJson<Page<Question>>(`/questions/${buildQuery({ page })}`);
+export function listAllQuestions(): Promise<ReadonlyArray<Question>> {
+  return listEveryPage<Question>('/questions/');
 }
 
 /** Lists are paginated (20 per page); follow `next` until the last page. */
