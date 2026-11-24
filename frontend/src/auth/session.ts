@@ -8,6 +8,8 @@ type SessionState = {
   isReady: boolean;
 };
 
+const REFRESH_LOCK = 'extra-time-refresh';
+
 const state = reactive<SessionState>({ user: undefined, isReady: false });
 
 /**
@@ -42,9 +44,13 @@ export function initSession(): Promise<void> {
   return initInFlight;
 }
 
-/** Concurrent callers share one refresh: with rotation, a second refresh would reuse a revoked token. */
+/**
+ * Concurrent callers share one refresh: with rotation, a second refresh would reuse a revoked token.
+ * Other tabs share the cookie too, so a Web Lock makes tabs take turns; a tab that waited sends the
+ * cookie the previous tab just received.
+ */
 export function refreshAccessToken(): Promise<boolean> {
-  refreshInFlight ??= requestNewAccessToken().finally(() => {
+  refreshInFlight ??= runOneTabAtATime(requestNewAccessToken).finally(() => {
     refreshInFlight = undefined;
   });
   return refreshInFlight;
@@ -90,6 +96,10 @@ async function restoreSession(): Promise<void> {
   } finally {
     state.isReady = true;
   }
+}
+
+function runOneTabAtATime(task: () => Promise<boolean>): Promise<boolean> {
+  return 'locks' in navigator ? navigator.locks.request(REFRESH_LOCK, task) : task();
 }
 
 async function requestNewAccessToken(): Promise<boolean> {

@@ -8,6 +8,7 @@ const props = defineProps<{
   position: number;
   total: number;
   chosenId: number | null;
+  isBusy?: boolean;
 }>();
 const emit = defineEmits<{ choose: [choiceId: number | null]; back: []; next: [] }>();
 
@@ -42,16 +43,19 @@ const answeredWidth = computed(() => `${(100 * props.position) / props.total}%`)
     </fieldset>
 
     <div class="quiz-actions">
-      <button type="button" class="button button-quiet" :disabled="isFirst" @click="emit('back')">Back</button>
+      <button type="button" class="button button-quiet" :disabled="isFirst || isBusy" @click="emit('back')">
+        Back
+      </button>
       <button
         v-if="chosenId !== null"
         type="button"
         class="button button-quiet"
+        :disabled="isBusy"
         @click="emit('choose', null)"
       >
         Clear answer
       </button>
-      <button type="button" class="button" @click="emit('next')">
+      <button type="button" class="button" :disabled="isBusy" @click="emit('next')">
         {{ isLast ? 'Finish and see score' : chosenId === null ? 'Skip' : 'Next question' }}
       </button>
     </div>

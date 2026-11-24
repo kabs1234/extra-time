@@ -2,7 +2,7 @@
 import { computed, ref, shallowRef } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
-import { getErrorMessage } from '@/api/client';
+import { getErrorMessage, getFieldErrors } from '@/api/client';
 import { listEras, listTopics, startQuiz, submitAttempt } from '@/api/resources';
 import type { Attempt, AttemptInput, Question, QuizFilters } from '@/api/types';
 import AttemptReview from '@/components/AttemptReview.vue';
@@ -76,16 +76,24 @@ async function handleNext(): Promise<void> {
 }
 
 async function handleSubmit(): Promise<void> {
+  if (isSubmitting.value) {
+    return;
+  }
   isSubmitting.value = true;
   submitError.value = undefined;
   try {
     attempt.value = await submitAttempt(buildAttemptInput());
     phase.value = Phase.Result;
   } catch (error: unknown) {
-    submitError.value = getErrorMessage(error);
+    submitError.value = describeSubmitFailure(error);
   } finally {
     isSubmitting.value = false;
   }
+}
+
+function describeSubmitFailure(error: unknown): string {
+  const messages = Object.values(getFieldErrors(error)).flat();
+  return messages.length > 0 ? messages.join(' ') : getErrorMessage(error);
 }
 
 function buildAttemptInput(): AttemptInput {
@@ -143,6 +151,7 @@ function handlePlayAgain(): void {
         :position="currentIndex + 1"
         :total="questions.length"
         :chosen-id="answers.get(currentQuestion.id) ?? null"
+        :is-busy="isSubmitting"
         @choose="handleChoose"
         @back="handleBack"
         @next="handleNext"
