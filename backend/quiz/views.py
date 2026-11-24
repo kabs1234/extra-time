@@ -1,14 +1,14 @@
 from django.db.models import QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, mixins, serializers, status, viewsets
-from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from quiz.leaderboard import leaderboard_rows
 from quiz.models import Choice, Era, Question, QuizAttempt, Topic
-from quiz.permissions import IsAuthorOrStaffOrReadOnly, IsStaffOrReadOnly, is_author_or_staff
+from quiz.permissions import IsAuthorOrStaffOrReadOnly, IsStaffOrReadOnly
 from quiz.serializers import (
     AttemptCreateSerializer,
     AttemptSerializer,
@@ -22,7 +22,6 @@ from quiz.serializers import (
     choice_set_errors,
 )
 
-NOT_YOUR_QUESTION = "Only the question's author or staff can change its choices."
 MIN_QUIZ_LENGTH = 5
 MAX_QUIZ_LENGTH = 20
 
@@ -64,24 +63,12 @@ class ChoiceViewSet(viewsets.ModelViewSet):
     serializer_class = ChoiceSerializer
     permission_classes = [IsAuthorOrStaffOrReadOnly]
 
-    def perform_create(self, serializer: ChoiceSerializer) -> None:
-        self.check_question_owner(serializer.validated_data["question"])
-        serializer.save()
-
-    def perform_update(self, serializer: ChoiceSerializer) -> None:
-        self.check_question_owner(serializer.validated_data.get("question", serializer.instance.question))
-        serializer.save()
-
     def perform_destroy(self, choice: Choice) -> None:
         remaining = choice.question.choices.exclude(pk=choice.pk).values_list("is_correct", flat=True)
         errors = choice_set_errors(list(remaining))
         if errors:
             raise serializers.ValidationError({"question": errors})
         choice.delete()
-
-    def check_question_owner(self, question: Question) -> None:
-        if not is_author_or_staff(self.request.user, question):
-            raise PermissionDenied(NOT_YOUR_QUESTION)
 
 
 class QuizView(generics.GenericAPIView):

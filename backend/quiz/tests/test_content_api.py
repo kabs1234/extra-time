@@ -250,3 +250,14 @@ class AdminChoiceRuleTests(ContentApiTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Question.objects.filter(text="Admin question").exists())
+
+
+class ChoiceOwnershipTests(ContentApiTestCase):
+    def test_non_author_gets_403_even_when_the_choice_set_would_be_invalid(self) -> None:
+        self.login_as(self.other)
+
+        response = self.client.post(
+            "/api/choices/", {"question": self.question.id, "text": "Italy", "is_correct": True}, format="json"
+        )
+
+        self.assertEqual(response.status_code, 403)

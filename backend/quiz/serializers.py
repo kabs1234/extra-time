@@ -2,14 +2,16 @@ from collections.abc import Sequence
 
 from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from quiz.models import AttemptAnswer, Choice, Era, Question, QuizAttempt, Topic
-from quiz.permissions import can_see_answers
+from quiz.permissions import can_see_answers, is_author_or_staff
 from quiz.scoring import create_attempt
 
 MIN_CHOICES = 2
 MAX_CHOICES = 4
 ANSWER_FIELDS = ("is_correct",)
+NOT_YOUR_QUESTION = "Only the question's author or staff can change its choices."
 
 
 def choice_set_errors(correct_flags: Sequence[bool]) -> list[str]:
@@ -128,6 +130,8 @@ class ChoiceSerializer(serializers.ModelSerializer):
         if self.instance is not None and attrs.get("question", self.instance.question) != self.instance.question:
             raise serializers.ValidationError({"question": "A choice can't move to another question."})
         question = attrs.get("question", getattr(self.instance, "question", None))
+        if not is_author_or_staff(self.context["request"].user, question):
+            raise PermissionDenied(NOT_YOUR_QUESTION)
         is_correct = attrs["is_correct"] if "is_correct" in attrs else bool(self.instance and self.instance.is_correct)
         siblings = question.choices.exclude(pk=getattr(self.instance, "pk", None))
         errors = choice_set_errors([*siblings.values_list("is_correct", flat=True), is_correct])
