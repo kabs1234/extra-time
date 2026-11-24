@@ -16,7 +16,10 @@ configureAuth({
   refreshAccessToken,
   onAuthLost: () => {
     clearSession();
-    void router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } });
+    const { meta, fullPath } = router.currentRoute.value;
+    if (meta.requiresAuth) {
+      void router.push({ name: 'login', query: { redirect: fullPath } });
+    }
   },
 });
 

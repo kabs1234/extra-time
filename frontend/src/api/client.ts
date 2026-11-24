@@ -87,18 +87,18 @@ export function isUnauthorized(error: unknown): boolean {
 /**
  * Sends a request with the in-memory access token. On a 401 from a non-auth endpoint
  * the token has probably expired: refresh once (the refresh cookie travels on its own)
- * and retry; if refreshing fails, the session is over.
+ * and retry. If refreshing fails, the session is over; the request is retried without a
+ * token, so public data still loads and only protected requests fail.
  */
 async function send(path: string, init: RequestInit): Promise<Response> {
   const response = await fetchWithToken(path, init);
   if (response.status !== HTTP_UNAUTHORIZED || path.startsWith(AUTH_PATH_PREFIX)) {
     return ensureOk(response);
   }
-  if (await authHooks.refreshAccessToken()) {
-    return ensureOk(await fetchWithToken(path, init));
+  if (!(await authHooks.refreshAccessToken())) {
+    authHooks.onAuthLost();
   }
-  authHooks.onAuthLost();
-  return ensureOk(response);
+  return ensureOk(await fetchWithToken(path, init));
 }
 
 function fetchWithToken(path: string, init: RequestInit): Promise<Response> {
