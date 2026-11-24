@@ -125,6 +125,8 @@ class ChoiceSerializer(serializers.ModelSerializer):
         fields = ["id", "question", "text", "is_correct", "created_at", "updated_at"]
 
     def validate(self, attrs: dict) -> dict:
+        if self.instance is not None and attrs.get("question", self.instance.question) != self.instance.question:
+            raise serializers.ValidationError({"question": "A choice can't move to another question."})
         question = attrs.get("question", getattr(self.instance, "question", None))
         is_correct = attrs["is_correct"] if "is_correct" in attrs else bool(self.instance and self.instance.is_correct)
         siblings = question.choices.exclude(pk=getattr(self.instance, "pk", None))
@@ -154,14 +156,16 @@ class QuizParamsSerializer(serializers.Serializer):
 
 
 class AnswerInputSerializer(serializers.Serializer):
+    """One answer. A choice id that no longer exists (the author edited the question mid-round) counts as skipped."""
+
     question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.prefetch_related("choices"))
-    choice = serializers.PrimaryKeyRelatedField(queryset=Choice.objects.all(), allow_null=True)
+    choice = serializers.IntegerField(allow_null=True)
 
     def validate(self, attrs: dict) -> dict:
-        choice = attrs["choice"]
+        choice = Choice.objects.filter(pk=attrs["choice"]).first() if attrs["choice"] is not None else None
         if choice is not None and choice.question_id != attrs["question"].id:
             raise serializers.ValidationError({"choice": "This choice belongs to a different question."})
-        return attrs
+        return {**attrs, "choice": choice}
 
 
 class AttemptCreateSerializer(serializers.Serializer):

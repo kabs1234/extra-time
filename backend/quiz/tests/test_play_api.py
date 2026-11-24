@@ -221,3 +221,32 @@ class LeaderboardTests(PlayApiTestCase):
         rows = self.client.get("/api/leaderboard/").json()
 
         self.assertEqual([row["username"] for row in rows], ["player", "rival"])
+
+
+class StaleRoundTests(PlayApiTestCase):
+    def test_submit_with_replaced_choice_counts_as_skipped(self) -> None:
+        self.client.force_authenticate(self.player)
+        first, second, _ = self.questions
+        stale_choice_id = self.right(first).id
+        first.choices.all().delete()
+        Choice.objects.create(question=first, text="Right 0", is_correct=True)
+        Choice.objects.create(question=first, text="Wrong 0")
+
+        response = self.submit(
+            [{"question": first.id, "choice": stale_choice_id}, {"question": second.id, "choice": self.right(second).id}]
+        )
+
+        self.assertEqual(response.status_code, 201)
+        answers = response.json()["answers"]
+        self.assertEqual((answers[0]["is_correct"], answers[0]["chosen_text"]), (False, ""))
+        self.assertEqual(response.json()["score"], 1)
+
+    def test_question_without_correct_choice_does_not_crash_scoring(self) -> None:
+        broken = make_question(self.curator, self.era, 50)
+        broken.choices.filter(is_correct=True).update(is_correct=False)
+        self.client.force_authenticate(self.player)
+
+        response = self.submit([{"question": broken.id, "choice": broken.choices.first().id}])
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual((response.json()["score"], response.json()["answers"][0]["correct_text"]), (0, ""))

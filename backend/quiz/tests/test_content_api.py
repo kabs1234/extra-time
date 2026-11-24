@@ -213,3 +213,40 @@ class ChoiceWriteTests(ContentApiTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertTrue(Choice.objects.filter(pk=correct.pk).exists())
+
+
+class ChoiceMoveTests(ContentApiTestCase):
+    def test_choice_cannot_move_to_another_question(self) -> None:
+        other_question = make_question(self.author, self.era, text="Second question")
+        wrong = self.question.choices.get(is_correct=False)
+        self.login_as(self.author)
+
+        self.client.patch(f"/api/choices/{wrong.id}/", {"question": other_question.id}, format="json")
+
+        wrong.refresh_from_db()
+        self.assertEqual(wrong.question_id, self.question.id)
+        self.assertEqual(self.question.choices.count(), 2)
+
+
+class AdminChoiceRuleTests(ContentApiTestCase):
+    def test_admin_rejects_question_without_correct_choice(self) -> None:
+        superuser = User.objects.create_superuser("root", password=PASSWORD)
+        self.client.force_login(superuser)
+        form = {
+            "text": "Admin question",
+            "difficulty": "easy",
+            "explanation": "",
+            "era": self.era.id,
+            "author": superuser.id,
+            "choices-TOTAL_FORMS": "2",
+            "choices-INITIAL_FORMS": "0",
+            "choices-MIN_NUM_FORMS": "0",
+            "choices-MAX_NUM_FORMS": "1000",
+            "choices-0-text": "A",
+            "choices-1-text": "B",
+        }
+
+        response = self.client.post("/admin/quiz/question/add/", form)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Question.objects.filter(text="Admin question").exists())

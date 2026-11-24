@@ -1,10 +1,25 @@
 from django.contrib import admin
+from django.core.exceptions import ValidationError
+from django.forms.models import BaseInlineFormSet
 
 from quiz.models import AttemptAnswer, Choice, Era, Question, QuizAttempt, Topic
+from quiz.serializers import choice_set_errors
+
+
+class ChoiceInlineFormSet(BaseInlineFormSet):
+    """The admin keeps the same rule as the API: 2-4 choices, exactly one correct."""
+
+    def clean(self) -> None:
+        super().clean()
+        kept_forms = [form for form in self.forms if form.cleaned_data and not form.cleaned_data.get("DELETE")]
+        errors = choice_set_errors([bool(form.cleaned_data.get("is_correct")) for form in kept_forms])
+        if errors:
+            raise ValidationError(errors)
 
 
 class ChoiceInline(admin.TabularInline):
     model = Choice
+    formset = ChoiceInlineFormSet
     extra = 0
 
 
