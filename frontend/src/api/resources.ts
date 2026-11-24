@@ -14,18 +14,29 @@ import type {
   Topic,
 } from '@/api/types';
 
-export async function listEras(): Promise<ReadonlyArray<Era>> {
-  const page = await requestJson<Page<Era>>('/eras/');
-  return page.results;
+export function listEras(): Promise<ReadonlyArray<Era>> {
+  return listEveryPage<Era>('/eras/');
 }
 
-export async function listTopics(): Promise<ReadonlyArray<Topic>> {
-  const page = await requestJson<Page<Topic>>('/topics/');
-  return page.results;
+export function listTopics(): Promise<ReadonlyArray<Topic>> {
+  return listEveryPage<Topic>('/topics/');
 }
 
 export function listQuestions(page = 1): Promise<Page<Question>> {
   return requestJson<Page<Question>>(`/questions/${buildQuery({ page })}`);
+}
+
+/** Lists are paginated (20 per page); follow `next` until the last page. */
+async function listEveryPage<TItem>(path: string): Promise<ReadonlyArray<TItem>> {
+  let pageNumber = 1;
+  let page = await requestJson<Page<TItem>>(`${path}${buildQuery({ page: pageNumber })}`);
+  let items: ReadonlyArray<TItem> = page.results;
+  while (page.next) {
+    pageNumber += 1;
+    page = await requestJson<Page<TItem>>(`${path}${buildQuery({ page: pageNumber })}`);
+    items = [...items, ...page.results];
+  }
+  return items;
 }
 
 export function listMyQuestions(page = 1): Promise<Page<Question>> {
