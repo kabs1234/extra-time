@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { getErrorMessage } from '@/api/client';
@@ -17,6 +17,29 @@ const results = computed(() => questions.data.value?.results ?? []);
 const confirmingId = ref<number>();
 const deletingId = ref<number>();
 const deleteError = ref<string>();
+
+function deleteButtonId(questionId: number): string {
+  return `delete-question-${questionId}`;
+}
+
+function keepButtonId(questionId: number): string {
+  return `keep-question-${questionId}`;
+}
+
+async function focusElement(elementId: string): Promise<void> {
+  await nextTick();
+  document.getElementById(elementId)?.focus();
+}
+
+async function openDeleteConfirm(questionId: number): Promise<void> {
+  confirmingId.value = questionId;
+  await focusElement(keepButtonId(questionId));
+}
+
+async function closeDeleteConfirm(questionId: number): Promise<void> {
+  confirmingId.value = undefined;
+  await focusElement(deleteButtonId(questionId));
+}
 
 function findCorrectText(question: Question): string {
   return question.choices.find((choice) => choice.is_correct)?.text ?? 'not set';
@@ -64,9 +87,10 @@ async function handleDelete(id: number): Promise<void> {
                 </RouterLink>
                 <button
                   v-if="confirmingId !== question.id"
+                  :id="deleteButtonId(question.id)"
                   type="button"
                   class="button button-quiet"
-                  @click="confirmingId = question.id"
+                  @click="openDeleteConfirm(question.id)"
                 >
                   Delete
                 </button>
@@ -80,7 +104,14 @@ async function handleDelete(id: number): Promise<void> {
                   >
                     {{ deletingId === question.id ? 'Deleting…' : 'Delete question' }}
                   </button>
-                  <button type="button" class="button button-quiet" @click="confirmingId = undefined">Keep it</button>
+                  <button
+                    :id="keepButtonId(question.id)"
+                    type="button"
+                    class="button button-quiet"
+                    @click="closeDeleteConfirm(question.id)"
+                  >
+                    Keep it
+                  </button>
                 </template>
               </div>
             </QuestionCard>

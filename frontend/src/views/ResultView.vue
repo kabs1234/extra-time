@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref, useTemplateRef } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { getErrorMessage } from '@/api/client';
@@ -14,6 +14,20 @@ const attempt = useAsync(() => getAttempt(props.id));
 const isConfirmingDelete = ref(false);
 const isDeleting = ref(false);
 const deleteError = ref<string>();
+const deleteButton = useTemplateRef<HTMLButtonElement>('deleteButton');
+const keepButton = useTemplateRef<HTMLButtonElement>('keepButton');
+
+async function openDeleteConfirm(): Promise<void> {
+  isConfirmingDelete.value = true;
+  await nextTick();
+  keepButton.value?.focus();
+}
+
+async function closeDeleteConfirm(): Promise<void> {
+  isConfirmingDelete.value = false;
+  await nextTick();
+  deleteButton.value?.focus();
+}
 
 async function handleDelete(): Promise<void> {
   isDeleting.value = true;
@@ -48,9 +62,10 @@ async function handleDelete(): Promise<void> {
             <p v-if="deleteError" class="form-alert" role="alert">Couldn't delete this result: {{ deleteError }}</p>
             <button
               v-if="!isConfirmingDelete"
+              ref="deleteButton"
               type="button"
               class="button button-quiet"
-              @click="isConfirmingDelete = true"
+              @click="openDeleteConfirm"
             >
               Delete this result
             </button>
@@ -64,7 +79,9 @@ async function handleDelete(): Promise<void> {
               <button type="button" class="button button-danger" :disabled="isDeleting" @click="handleDelete">
                 {{ isDeleting ? 'Deleting…' : 'Delete result' }}
               </button>
-              <button type="button" class="button button-quiet" @click="isConfirmingDelete = false">Keep it</button>
+              <button ref="keepButton" type="button" class="button button-quiet" @click="closeDeleteConfirm">
+                Keep it
+              </button>
             </div>
           </div>
         </AttemptReview>
