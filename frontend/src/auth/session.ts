@@ -1,16 +1,22 @@
 import { reactive, readonly } from 'vue';
 
-import { isUnauthorized, requestEmpty, requestJson } from '@/api/client';
+import { getErrorMessage, isUnauthorized, requestEmpty, requestJson } from '@/api/client';
 import type { AccessToken, LoginResponse, Me, SignupInput } from '@/api/types';
 
 type SessionState = {
   user: Me | undefined;
   isReady: boolean;
+  /**
+   * Why the session couldn't be restored when the cause wasn't a missing or revoked cookie
+   * (a server error, the network). The user may well still be logged in, so the app offers a
+   * retry instead of treating them as a guest.
+   */
+  restoreError: string | undefined;
 };
 
 const REFRESH_LOCK = 'extra-time-refresh';
 
-const state = reactive<SessionState>({ user: undefined, isReady: false });
+const state = reactive<SessionState>({ user: undefined, isReady: false, restoreError: undefined });
 
 /**
  * The access token lives only in this module's memory: never in localStorage, never in a
@@ -44,6 +50,11 @@ export function initSession(): Promise<void> {
   return initInFlight;
 }
 
+export function retrySessionRestore(): Promise<void> {
+  initInFlight = restoreSession();
+  return initInFlight;
+}
+
 /**
  * Concurrent callers share one refresh: with rotation, a second refresh would reuse a revoked token.
  * Other tabs share the cookie too, so a Web Lock makes tabs take turns; a tab that waited sends the
@@ -63,6 +74,7 @@ export async function login(username: string, password: string): Promise<void> {
   });
   accessToken = response.access;
   state.user = response.user;
+  state.restoreError = undefined;
 }
 
 export async function signup(input: SignupInput): Promise<void> {
@@ -81,6 +93,7 @@ export async function logout(): Promise<void> {
 export function clearSession(): void {
   accessToken = undefined;
   state.user = undefined;
+  state.restoreError = undefined;
 }
 
 async function restoreSession(): Promise<void> {
@@ -88,10 +101,11 @@ async function restoreSession(): Promise<void> {
     if (await refreshAccessToken()) {
       state.user = await requestJson<Me>('/me/');
     }
+    state.restoreError = undefined;
   } catch (error: unknown) {
     clearSession();
     if (!isUnauthorized(error)) {
-      reportSessionError(error);
+      state.restoreError = getErrorMessage(error);
     }
   } finally {
     state.isReady = true;
@@ -114,10 +128,4 @@ async function requestNewAccessToken(): Promise<boolean> {
     }
     throw error;
   }
-}
-
-function reportSessionError(error: unknown): void {
-  queueMicrotask(() => {
-    throw error;
-  });
 }

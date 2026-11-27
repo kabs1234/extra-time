@@ -1,14 +1,45 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router';
+import { computed, ref } from 'vue';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 
+import { isLoggedIn, retrySessionRestore, session } from '@/auth/session';
 import AppHeader from '@/components/AppHeader.vue';
+
+const route = useRoute();
+const router = useRouter();
+const isRetrying = ref(false);
+
+/** A protected page can't load while we don't know who the user is, so the alert stands in for it. */
+const isPageBlocked = computed(() => session.restoreError !== undefined && route.meta.requiresAuth === true);
+
+async function handleRetry(): Promise<void> {
+  isRetrying.value = true;
+  try {
+    await retrySessionRestore();
+  } finally {
+    isRetrying.value = false;
+  }
+  const isGuestOnProtectedPage = !isLoggedIn() && !session.restoreError && route.meta.requiresAuth;
+  if (isGuestOnProtectedPage) {
+    await router.replace({ name: 'login', query: { redirect: route.fullPath } });
+  }
+}
 </script>
 
 <template>
   <a class="skip-link" href="#main">Skip to content</a>
   <AppHeader />
   <main id="main" class="page">
-    <RouterView :key="$route.fullPath" />
+    <div v-if="session.restoreError" class="form-alert session-alert" role="alert">
+      <p>Couldn't check whether you're logged in: {{ session.restoreError }}</p>
+      <div>
+        <button type="button" class="button" :disabled="isRetrying" @click="handleRetry">
+          {{ isRetrying ? 'Checking…' : 'Try again' }}
+        </button>
+      </div>
+    </div>
+    <p v-if="!session.isReady" class="session-loading" role="status">Loading…</p>
+    <RouterView v-else-if="!isPageBlocked" :key="$route.fullPath" />
   </main>
   <footer class="colophon">
     <p>Extra Time is a homework project for KBTU Web Development, autumn 2026. Facts are checked against well-documented sources.</p>
@@ -20,6 +51,18 @@ import AppHeader from '@/components/AppHeader.vue';
   flex: 1;
   width: 100%;
   padding: var(--space-6) var(--page-inset) var(--space-8);
+}
+
+.session-alert {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 44rem;
+  margin-bottom: var(--space-6);
+}
+
+.session-loading {
+  padding: var(--space-6) 0;
+  color: var(--muted);
 }
 
 .colophon {

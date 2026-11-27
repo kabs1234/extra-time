@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { getErrorMessage } from '@/api/client';
@@ -7,6 +7,8 @@ import { logout, session } from '@/auth/session';
 
 const router = useRouter();
 const logoutError = ref<string>();
+/** Only offer "Log in" once we know there's no session; until then the user might be logged in. */
+const isKnownGuest = computed(() => session.isReady && !session.restoreError);
 
 async function handleLogout(): Promise<void> {
   logoutError.value = undefined;
@@ -34,7 +36,7 @@ async function handleLogout(): Promise<void> {
         </RouterLink>
         <button type="button" class="masthead-link masthead-button" @click="handleLogout">Log out</button>
       </template>
-      <template v-else>
+      <template v-else-if="isKnownGuest">
         <RouterLink to="/login" class="masthead-link" active-class="is-current">Log in</RouterLink>
         <RouterLink to="/signup" class="masthead-link masthead-signup">Sign up</RouterLink>
       </template>

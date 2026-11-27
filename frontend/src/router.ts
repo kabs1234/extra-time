@@ -5,7 +5,7 @@ import {
   type RouteLocationRaw,
 } from 'vue-router';
 
-import { initSession, isLoggedIn } from '@/auth/session';
+import { initSession, isLoggedIn, session } from '@/auth/session';
 import HomeView from '@/views/HomeView.vue';
 import LeaderboardView from '@/views/LeaderboardView.vue';
 import LoginView from '@/views/LoginView.vue';
@@ -72,7 +72,8 @@ export const router = createRouter({
 
 router.beforeEach(async (to): Promise<RouteLocationRaw | true> => {
   await initSession();
-  if (to.meta.requiresAuth && !isLoggedIn()) {
+  // When the session couldn't be checked (server down), App shows a retry instead of the page.
+  if (to.meta.requiresAuth && !isLoggedIn() && !session.restoreError) {
     return { name: 'login', query: { redirect: to.fullPath } };
   }
   if (to.meta.guestOnly && isLoggedIn()) {
