@@ -39,6 +39,12 @@ const isSubmitting = ref(false);
 const currentQuestion = computed(() => questions.value[currentIndex.value]);
 const answeredCount = computed(() => [...answers.value.values()].filter((choiceId) => choiceId !== null).length);
 const isRoundInProgress = computed(() => phase.value === Phase.Playing);
+const isShortRound = computed(() => questions.value.length < filters.value.count);
+const shortRoundNote = computed(() => {
+  const found = questions.value.length;
+  const matches = found === 1 ? '1 question matches' : `${found} questions match`;
+  return `Only ${matches} this pick, so this round is shorter than the ${filters.value.count} you asked for.`;
+});
 
 onBeforeRouteLeave(() => !isRoundInProgress.value || !isLoggedIn() || window.confirm(LEAVE_ROUND_WARNING));
 
@@ -160,6 +166,7 @@ function handlePlayAgain(): void {
     </template>
 
     <template v-else-if="phase === Phase.Playing && currentQuestion">
+      <p v-if="isShortRound && currentIndex === 0" class="short-round-note" role="status">{{ shortRoundNote }}</p>
       <QuizQuestion
         :key="currentQuestion.id"
         :question="currentQuestion"
@@ -198,6 +205,10 @@ function handlePlayAgain(): void {
   display: grid;
   gap: var(--space-2);
   max-width: 44rem;
+}
+
+.short-round-note {
+  color: var(--muted);
 }
 
 .result-actions {
