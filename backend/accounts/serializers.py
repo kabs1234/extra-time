@@ -8,6 +8,20 @@ from rest_framework import serializers
 from accounts.models import Profile
 
 WRONG_PASSWORD = "The password is incorrect."
+USERNAME_TAKEN = User._meta.get_field("username").error_messages["unique"]
+
+
+def ensure_username_free(username: str, owner: User | None = None) -> str:
+    """
+    Usernames are unique regardless of case: login is case-sensitive, so ``Luca`` and ``luca``
+    would be two accounts that look like one player on the leaderboard.
+    """
+    others = User.objects.filter(username__iexact=username)
+    if owner is not None:
+        others = others.exclude(pk=owner.pk)
+    if others.exists():
+        raise serializers.ValidationError(USERNAME_TAKEN)
+    return username
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -35,6 +49,9 @@ class MeSerializer(serializers.ModelSerializer):
     def get_stats(self, user: User) -> dict[str, int]:
         return user_stats(user)
 
+    def validate_username(self, username: str) -> str:
+        return ensure_username_free(username, owner=self.instance)
+
     @transaction.atomic
     def update(self, user: User, validated_data: dict) -> User:
         profile_data = validated_data.pop("profile", {})
@@ -56,6 +73,9 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "username", "password", "favorite_club", "country"]
         read_only_fields = ["id"]
+
+    def validate_username(self, username: str) -> str:
+        return ensure_username_free(username)
 
     def validate(self, attrs: dict) -> dict:
         try:

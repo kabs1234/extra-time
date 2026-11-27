@@ -47,6 +47,22 @@ class MeTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("username", response.json())
 
+    def test_change_username_to_another_users_name_in_other_case_is_400(self) -> None:
+        self.authorize(self.access)
+
+        response = self.client.patch("/api/me/", {"username": "TAKEN"}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["username"], ["A user with that username already exists."])
+
+    def test_change_case_of_own_username(self) -> None:
+        self.authorize(self.access)
+
+        response = self.client.patch("/api/me/", {"username": "Player"}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["username"], "Player")
+
     def test_password_change_wrong_old_is_400(self) -> None:
         self.authorize(self.access)
 

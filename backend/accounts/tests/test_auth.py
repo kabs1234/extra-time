@@ -29,6 +29,14 @@ class SignupTests(APITestCase):
         user = User.objects.get(username="newfan")
         self.assertEqual(Profile.objects.get(user=user).favorite_club, "Ajax")
 
+    def test_signup_rejects_username_that_differs_only_in_case(self) -> None:
+        User.objects.create_user("newfan", password=PASSWORD)
+
+        response = self.client.post("/api/auth/signup/", {"username": "NewFan", "password": PASSWORD}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["username"], ["A user with that username already exists."])
+
     def test_signup_rejects_weak_password(self) -> None:
         response = self.client.post("/api/auth/signup/", {"username": "newfan", "password": "123"}, format="json")
 
