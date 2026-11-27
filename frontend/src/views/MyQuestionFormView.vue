@@ -27,7 +27,9 @@ type FormOptions = {
 };
 
 const NOT_YOUR_QUESTION = 'You can only edit questions you wrote.';
+const MISSING_QUESTION_TEXT = 'Write the question.';
 const MISSING_ANSWER_TEXT = 'Every answer needs some text.';
+const REPEATED_ANSWER_TEXT = "Two answers can't have the same text.";
 const MISSING_ERA = 'Choose the era this question belongs to.';
 const BLANK_CHOICES: ReadonlyArray<ChoiceDraft> = [
   { key: 1, text: '', is_correct: true },
@@ -83,12 +85,25 @@ function fillDraft(question: Question): void {
   }));
 }
 
+/** The checks the browser can make itself, so every problem shows at once instead of after a round trip. */
 function findDraftProblems(): FieldErrors {
-  const hasBlankAnswer = draft.choices.some((choice) => choice.text.trim() === '');
+  const choiceProblems = findChoiceProblems(draft.choices);
   return {
+    ...(draft.text.trim() === '' ? { text: [MISSING_QUESTION_TEXT] } : {}),
     ...(draft.era === '' ? { era: [MISSING_ERA] } : {}),
-    ...(hasBlankAnswer ? { choices: [MISSING_ANSWER_TEXT] } : {}),
+    ...(choiceProblems.length > 0 ? { choices: choiceProblems } : {}),
   };
+}
+
+function findChoiceProblems(choices: ReadonlyArray<ChoiceDraft>): ReadonlyArray<string> {
+  const texts = choices.map((choice) => choice.text.trim().toLowerCase());
+  const hasBlankAnswer = texts.includes('');
+  const filledTexts = texts.filter((text) => text !== '');
+  const hasRepeatedAnswer = new Set(filledTexts).size !== filledTexts.length;
+  return [
+    ...(hasBlankAnswer ? [MISSING_ANSWER_TEXT] : []),
+    ...(hasRepeatedAnswer ? [REPEATED_ANSWER_TEXT] : []),
+  ];
 }
 
 function buildInput(): QuestionInput {
