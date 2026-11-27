@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { getQuestion } from '@/api/resources';
@@ -8,6 +9,8 @@ import { formatDifficulty } from '@/format';
 
 const props = defineProps<{ id: number }>();
 const question = useAsync(() => getQuestion(props.id));
+/** Authors and staff get `is_correct` on every choice; everyone else gets none until they play. */
+const isAnswerShown = computed(() => question.data.value?.choices.some((choice) => choice.is_correct !== undefined) ?? false);
 </script>
 
 <template>
@@ -53,7 +56,9 @@ const question = useAsync(() => getQuestion(props.id));
           </li>
         </ol>
         <p v-if="question.data.value.explanation" class="explanation">{{ question.data.value.explanation }}</p>
-        <p v-else class="hint">The answer is revealed after you play a quiz that includes this question.</p>
+        <p v-else-if="!isAnswerShown" class="hint">
+          The answer is revealed after you play a quiz that includes this question.
+        </p>
         <div>
           <RouterLink :to="{ path: '/play', query: { era: question.data.value.era } }" class="button">
             Play {{ question.data.value.era_name }}
