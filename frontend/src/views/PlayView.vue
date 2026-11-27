@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { onBeforeRouteLeave, RouterLink, useRoute } from 'vue-router';
 
 import { getErrorMessage, getFieldErrors } from '@/api/client';
 import { listEras, listTopics, startQuiz, submitAttempt } from '@/api/resources';
 import type { Attempt, AttemptInput, Question, QuizFilters } from '@/api/types';
+import { isLoggedIn } from '@/auth/session';
 import AttemptReview from '@/components/AttemptReview.vue';
 import LoadState from '@/components/LoadState.vue';
 import QuizQuestion from '@/components/QuizQuestion.vue';
@@ -19,6 +20,8 @@ const Phase = {
   Result: 'result',
 } as const;
 type Phase = (typeof Phase)[keyof typeof Phase];
+
+const LEAVE_ROUND_WARNING = "Leave this round? Your answers so far won't be saved.";
 
 const route = useRoute();
 const options = useAsync(() => Promise.all([listEras(), listTopics()]));
@@ -35,6 +38,18 @@ const isSubmitting = ref(false);
 
 const currentQuestion = computed(() => questions.value[currentIndex.value]);
 const answeredCount = computed(() => [...answers.value.values()].filter((choiceId) => choiceId !== null).length);
+const isRoundInProgress = computed(() => phase.value === Phase.Playing);
+
+onBeforeRouteLeave(() => !isRoundInProgress.value || !isLoggedIn() || window.confirm(LEAVE_ROUND_WARNING));
+
+function warnBeforeUnload(event: BeforeUnloadEvent): void {
+  if (isRoundInProgress.value) {
+    event.preventDefault();
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload));
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload));
 
 function readNumberQuery(value: unknown): number | undefined {
   const parsed = Number(value);
