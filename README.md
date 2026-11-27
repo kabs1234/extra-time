@@ -12,7 +12,7 @@ Built for HW4 of Web Application Development (KBTU, autumn 2026): a Django REST 
 |---|---|
 | At least 3 entities with one-to-one, one-to-many and many-to-many relationships | `User`–`Profile` (1:1), `Era`→`Question`, `Question`→`Choice`, `User`→`QuizAttempt` (1:N), `Question`↔`Topic` and `QuizAttempt`↔`Question` through `AttemptAnswer` (M:N). See [Data model](#data-model) |
 | Every table has at least 10 rows | `python manage.py seed` runs on first start: 11 users and profiles, 10 eras, 10 topics, 57 questions, 228 choices, 13 attempts with 73 answers |
-| Full CRUD, public GET, authenticated writes | Every resource has list/retrieve/create/update/delete endpoints. Reads are public; every POST/PUT/PATCH/DELETE needs a JWT. See [API.md](API.md) |
+| Full CRUD, public GET, authenticated writes | Eras, topics, questions and choices have list/retrieve/create/update/delete endpoints. Attempts can be created, read and deleted but not edited (`405`), so past scores never change; their answers are created and deleted with them. Users and profiles are created by signup and read, updated and deleted through `/api/me/`. Reads are public; every POST/PUT/PATCH/DELETE needs a JWT. See [API.md](API.md) |
 | Signup, login, JWT | `djangorestframework-simplejwt`: `/api/auth/signup/`, `/api/auth/login/`, `/api/auth/refresh/`, `/api/auth/logout/` |
 | At least 2 protected frontend routes, including Profile | `/profile`, `/play`, `/results`, `/my-questions` all require login |
 | Profile shows the user and lets them change username and password | `/profile`, backed by `GET/PATCH/DELETE /api/me/` and `POST /api/me/password/` |
@@ -72,6 +72,7 @@ The passwords come from `SEED_PASSWORD`, `ADMIN_USERNAME` and `ADMIN_PASSWORD` i
 | `JWT_ACCESS_MINUTES` | backend | `5` | Access token lifetime |
 | `JWT_REFRESH_DAYS` | backend | `1` | Refresh token (and cookie) lifetime |
 | `JWT_COOKIE_SECURE` | backend | `0` | `1` adds `Secure` to the refresh cookie; keep `0` for plain http on localhost |
+| `FRONTEND_URL` | backend | not set (`http://localhost:8080/`) | Where the Django admin's "View site" link goes |
 | `SEED_PASSWORD` | backend | `football123` | Password of the seeded curator and players |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | backend | `admin`, `admin12345` | Seeded superuser |
 
@@ -115,11 +116,11 @@ All models have `created_at` and `updated_at`. Users are Django's built-in `User
 | `Era` | `name` (unique), `start_year`, `end_year`, `summary` | **1:N** an era has many questions |
 | `Topic` | `name` (unique), `slug` (unique), `description` | **M:N** with `Question` |
 | `Question` | `text`, `difficulty` (easy/medium/hard), `explanation`, `era`, `topics`, `author` | **N:1** `Era`, **N:1** `User` (author), **1:N** choices, **M:N** topics |
-| `Choice` | `question`, `text`, `is_correct` | **N:1** `Question`. Each question has 2–4 choices, exactly one correct |
+| `Choice` | `question`, `text`, `is_correct` | **N:1** `Question`. Each question has 2–4 choices, exactly one correct, no two with the same text |
 | `QuizAttempt` | `user`, `era` (optional), `topic` (optional), `score`, `total` | **N:1** `User`; **M:N** with `Question` through `AttemptAnswer` |
 | `AttemptAnswer` | `attempt`, `question`, `choice` (empty = skipped), `is_correct`, `question_text`, `chosen_text`, `correct_text`, `explanation` | Through model of attempt ↔ question; unique per (attempt, question) |
 
-Rules enforced by the API and the Django admin: an era can't end before it starts; a question always has 2–4 choices with exactly one correct (also when a single choice is added, changed or deleted through `/api/choices/`), and a choice can't move to another question; a chosen answer must belong to its question, and one whose choice was deleted since (the author edited the question mid-round) counts as skipped; players can't answer their own questions.
+Rules enforced by the API and the Django admin: an era can't end before it starts; a question always has 2–4 choices with exactly one correct and no repeated text, ignoring case (also when a single choice is added, changed or deleted through `/api/choices/`), and a choice can't move to another question; a chosen answer must belong to its question, and one whose choice was deleted since (the author edited the question mid-round) counts as skipped; players can't answer their own questions.
 
 **Past rounds never change.** `AttemptAnswer` keeps a copy of the question text, the chosen answer, the correct answer and the explanation, and its links to the question and choice become empty if those are deleted. Editing or deleting a question (or its era) therefore never changes a past score or result page.
 
@@ -147,7 +148,7 @@ The server keeps no session for access tokens: it verifies the signature and `ex
 
 **Why this storage.** If an attacker manages to run JavaScript on the page (XSS), anything in `localStorage` or in a readable cookie can be stolen and used from anywhere. Here the long-lived refresh token is in an `HttpOnly` cookie that scripts can't read. The access token is only in memory, and it expires within 5 minutes. `SameSite=Strict` means the browser never attaches the cookie to a request started by another site, so a forged cross-site request can't refresh a session. Because nginx serves the app and the API from the same origin, the cookie works without any CORS configuration. The cookie's `Path=/api/auth/` keeps it off every other request. A reload loses the in-memory access token; the app gets a new one from the cookie before showing any page.
 
-**Rotation and the blacklist.** Every `POST /api/auth/refresh/` returns a new access token and replaces the cookie with a new refresh token; the old refresh token goes on the blacklist (`ROTATE_REFRESH_TOKENS`, `BLACKLIST_AFTER_ROTATION`). A stolen refresh token therefore works at most once. Logging out blacklists the cookie's token and deletes the cookie. Changing the password blacklists every refresh token the user has ever been issued, so all other devices are logged out, and returns a fresh pair to the device that made the change. Deleting the account does the same before removing the user.
+**Rotation and the blacklist.** Every `POST /api/auth/refresh/` returns a new access token and replaces the cookie with a new refresh token; the old refresh token goes on the blacklist (`ROTATE_REFRESH_TOKENS`, `BLACKLIST_AFTER_ROTATION`). A stolen refresh token therefore stops working once it has been used, after a 30-second grace period (`REFRESH_ROTATION_GRACE`): if the browser never receives the response to a refresh (the user reloads while it is in flight), it still holds the old token, and for 30 seconds the server accepts it once more by rotating its successor instead. `RefreshRotation` records which token replaced which. A successor that was blacklisted by logout or a password change can't be rotated, so the grace period never revives a session that was ended on purpose. Logging out blacklists the cookie's token and deletes the cookie. Changing the password blacklists every refresh token the user has ever been issued, so all other devices are logged out, and returns a fresh pair to the device that made the change. Deleting the account does the same before removing the user.
 
 ### Backend: who may do what
 
@@ -169,7 +170,7 @@ Answers stay secret on the server: `is_correct` and `explanation` are only inclu
 
 - Routes carry `meta.requiresAuth` or `meta.guestOnly` (`frontend/src/router.ts`). Before the first navigation, the guard waits for `initSession()`, which calls `/api/auth/refresh/` once with the cookie and, if that works, loads `/api/me/`. So a reload on `/profile` restores the session before the guard decides, and the login page never flashes.
 - A logged-out visit to a protected route redirects to `/login?redirect=/that/path`; after logging in the app returns there. Logged-in users who open `/login` or `/signup` go to `/`.
-- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call, and open tabs take turns through a Web Lock: with rotation, a second refresh with the same cookie would send an already-blacklisted token. If one slips through anyway, the server answers `401` but keeps the cookie, because the other tab may already hold its replacement. If the refresh fails, the session is cleared: on a protected page the user is sent to `/login?redirect=…`; on a public page the request is repeated without a token, so the page still loads.
+- `frontend/src/api/client.ts` adds the `Bearer` header to every request. When a non-auth request gets `401` (usually an expired access token), it calls `refreshAccessToken()` and retries the request once. Requests that fail at the same moment share a single refresh call, and open tabs take turns through a Web Lock: with rotation, a second refresh with the same cookie would send an already-blacklisted token. If one slips through anyway, the grace period above usually covers it; once that has passed, the server answers `401` but keeps the cookie, because the other tab may already hold its replacement. If the refresh fails, the session is cleared: on a protected page the user is sent to `/login?redirect=…`; on a public page the request is repeated without a token, so the page still loads.
 - This is what keeps a long quiz safe: if the access token expires while someone is answering, submitting the round refreshes the token silently and the answers are saved.
 
 ## Postman

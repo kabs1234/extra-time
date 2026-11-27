@@ -14,9 +14,9 @@ Base URL: `http://localhost:8000/api/` (or `http://localhost:8080/api/` through 
 
 | Method and path | Auth | Body | Success | Errors |
 |---|---|---|---|---|
-| `POST /auth/signup/` | public | `{username, password, favorite_club?, country?}` | `201 {id, username}`. Creates the user and their profile | `400` field errors (taken username; weak password from Django's validators) |
+| `POST /auth/signup/` | public | `{username, password, favorite_club?, country?}` | `201 {id, username}`. Creates the user and their profile | `400` field errors (username taken, also in another letter case; weak password from Django's validators) |
 | `POST /auth/login/` | public | `{username, password}` | `200 {access, user: Me}` and sets the refresh cookie | `401 {"detail": "Invalid username or password."}`. A failed login leaves an existing cookie alone |
-| `POST /auth/refresh/` | cookie | — | `200 {access}` and replaces the cookie with a new refresh token; the old one is blacklisted | `401` if the cookie is missing, invalid, expired or blacklisted. The cookie is deleted, except when its token was rotated away by another tab's refresh |
+| `POST /auth/refresh/` | cookie | — | `200 {access}` and replaces the cookie with a new refresh token; the old one is blacklisted. For 30 seconds after that rotation the old token still works once more: the server rotates its successor instead, so a refresh whose response the browser lost (a reload mid-request) doesn't end the session | `401` if the cookie is missing, invalid, expired or blacklisted. The cookie is deleted, except when its token was rotated away by another tab's refresh |
 | `POST /auth/logout/` | cookie (optional) | — | `204`. Blacklists the cookie's refresh token and deletes the cookie | — |
 
 Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/`, `Max-Age` = refresh lifetime, `Secure` when `JWT_COOKIE_SECURE=1`. The refresh token never appears in a response body.
@@ -28,7 +28,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 | Method and path | Auth | Body | Success | Errors |
 |---|---|---|---|---|
 | `GET /me/` | access | — | `200 Me` | `401` |
-| `PATCH /me/` | access | `{username?, profile?: {favorite_club?, country?, bio?}}` | `200 Me` | `400 {"username": [...]}` (taken or invalid), `401` |
+| `PATCH /me/` | access | `{username?, profile?: {favorite_club?, country?, bio?}}` | `200 Me` | `400 {"username": [...]}` (taken by someone else in any letter case, or invalid), `401` |
 | `DELETE /me/` | access | `{password}` | `204`. Blacklists all the user's refresh tokens, deletes the cookie, the user, their profile, attempts and questions | `400 {"password": ["The password is incorrect."]}`, `401` |
 | `POST /me/password/` | access | `{old_password, new_password}` | `200 {access}` and a new refresh cookie. Every earlier refresh token of the user is blacklisted | `400 {"old_password": [...]}` or `{"new_password": [...]}`, `401` |
 
@@ -58,7 +58,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 |---|---|---|---|---|
 | `GET /questions/` | public | — | `200` page of questions | — |
 | `GET /questions/?mine=true` | access | — | `200` page of the caller's own questions, with answers | `401` |
-| `POST /questions/` | access | `{text, difficulty, explanation, era, topics: [id], choices: [{text, is_correct}]}` | `201 Question`, `author` = caller | `400` (e.g. `{"choices": ["Exactly one choice must be marked correct."]}`; 2–4 choices required), `401` |
+| `POST /questions/` | access | `{text, difficulty, explanation, era, topics: [id], choices: [{text, is_correct}]}` | `201 Question`, `author` = caller | `400` (e.g. `{"choices": ["Exactly one choice must be marked correct."]}`; 2–4 choices required, no two with the same text ignoring case), `401` |
 | `GET /questions/{id}/` | public | — | `200 Question` | `404` |
 | `PUT /questions/{id}/` | access, author or staff | same as POST; `choices` replaces the whole set | `200 Question` | `400`, `401`, `403`, `404` |
 | `PATCH /questions/{id}/` | access, author or staff | any fields; `choices` optional (replaces the set when given) | `200 Question` | `400`, `401`, `403`, `404` |
@@ -73,7 +73,7 @@ Refresh cookie: `refresh_token`, `HttpOnly`, `SameSite=Strict`, `Path=/api/auth/
 | Method and path | Auth | Success | Errors |
 |---|---|---|---|
 | `GET /choices/`, `GET /choices/{id}/` | public | `200` | `404` |
-| `POST /choices/` | access, author of the question or staff | `201 Choice` | `400 {"question": [...]}` if the question would no longer have 2–4 choices with exactly one correct; `401`; `403` for anyone but the author or staff, checked first |
+| `POST /choices/` | access, author of the question or staff | `201 Choice` | `400 {"question": [...]}` if the question would no longer have 2–4 choices with exactly one correct and no repeated text; `401`; `403` for anyone but the author or staff, checked first |
 | `PUT`, `PATCH /choices/{id}/` | access, author of the question or staff | `200 Choice` | same as POST, plus `400` for moving the choice to another question, and `404` |
 | `DELETE /choices/{id}/` | access, author of the question or staff | `204` | `400` if it would leave fewer than 2 choices or no correct one; `401`, `403`, `404` |
 
