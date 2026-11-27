@@ -16,6 +16,9 @@ DEBUG = env_flag("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
 
+# Where the Vue app lives. The admin's "View site" link points here; Django itself serves only the API.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:8080/")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
