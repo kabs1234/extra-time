@@ -55,7 +55,12 @@ async function handleDelete(): Promise<void> {
               Delete this result
             </button>
             <div v-else class="delete-confirm" role="group" aria-label="Confirm deletion">
-              <p>Delete this result for good? Your leaderboard total will go down by {{ attempt.data.value.score }}.</p>
+              <p>
+                Delete this result for good?
+                <template v-if="attempt.data.value.score > 0">
+                  Your leaderboard total will go down by {{ attempt.data.value.score }}.
+                </template>
+              </p>
               <button type="button" class="button button-danger" :disabled="isDeleting" @click="handleDelete">
                 {{ isDeleting ? 'Deleting…' : 'Delete result' }}
               </button>
