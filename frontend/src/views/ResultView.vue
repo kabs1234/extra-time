@@ -32,7 +32,15 @@ async function handleDelete(): Promise<void> {
 <template>
   <div class="stack">
     <p><RouterLink to="/results">Back to my results</RouterLink></p>
-    <LoadState :is-loading="attempt.isLoading.value" :error="attempt.error.value" @retry="attempt.reload">
+    <LoadState
+      :is-loading="attempt.isLoading.value"
+      :error="attempt.error.value"
+      :is-missing="attempt.isMissing.value"
+      @retry="attempt.reload"
+    >
+      <template #missing>
+        <p>This result doesn't exist. It may have been deleted.</p>
+      </template>
       <template v-if="attempt.data.value">
         <h1>Round result</h1>
         <AttemptReview :attempt="attempt.data.value">

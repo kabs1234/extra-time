@@ -1,10 +1,13 @@
 <script setup lang="ts">
-defineProps<{ isLoading: boolean; error?: string }>();
+defineProps<{ isLoading: boolean; error?: string; isMissing?: boolean }>();
 defineEmits<{ retry: [] }>();
 </script>
 
 <template>
   <p v-if="isLoading" class="load-state" role="status">Loading…</p>
+  <div v-else-if="error && isMissing" class="load-state load-state-error" role="alert">
+    <slot name="missing"><p>{{ error }}</p></slot>
+  </div>
   <div v-else-if="error" class="load-state load-state-error" role="alert">
     <p>Couldn't load: {{ error }}</p>
     <slot name="error-hint"><p>Check that the backend is running, then try again.</p></slot>

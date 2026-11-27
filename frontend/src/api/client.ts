@@ -2,6 +2,7 @@ const API_BASE = '/api';
 const AUTH_PATH_PREFIX = '/auth/';
 const HTTP_BAD_REQUEST = 400;
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 
 export type FieldErrors = Readonly<Record<string, ReadonlyArray<string>>>;
 export type QueryParams = Readonly<Record<string, string | number | undefined>>;
@@ -78,6 +79,14 @@ export function getFormMessage(error: unknown): string | undefined {
 
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.';
+}
+
+/** Thrown by the app itself when something exists on the server but isn't this user's to open. */
+export class MissingResourceError extends Error {}
+
+/** The thing asked for is gone (or never existed) for this user: retrying won't help. */
+export function isMissingResource(error: unknown): boolean {
+  return error instanceof MissingResourceError || (error instanceof ApiError && error.status === HTTP_NOT_FOUND);
 }
 
 export function isUnauthorized(error: unknown): boolean {

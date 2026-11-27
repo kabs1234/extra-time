@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
-import { getFieldErrors, getFormMessage, type FieldErrors } from '@/api/client';
+import { getFieldErrors, getFormMessage, MissingResourceError, type FieldErrors } from '@/api/client';
 import { createQuestion, getQuestion, listEras, listTopics, updateQuestion } from '@/api/resources';
 import { Difficulty, type Era, type Question, type QuestionInput, type Topic } from '@/api/types';
 import { session } from '@/auth/session';
@@ -65,7 +65,7 @@ async function loadExistingQuestion(): Promise<void> {
   }
   const question = await getQuestion(props.id);
   if (question.author !== session.user?.username) {
-    throw new Error(NOT_YOUR_QUESTION);
+    throw new MissingResourceError(NOT_YOUR_QUESTION);
   }
   fillDraft(question);
 }
@@ -131,9 +131,17 @@ async function handleSubmit(): Promise<void> {
   <section class="stack">
     <p><RouterLink :to="{ name: 'my-questions' }">Back to my questions</RouterLink></p>
     <h1>{{ isEditing ? 'Edit your question' : 'Write a question' }}</h1>
-    <LoadState :is-loading="options.isLoading.value" :error="options.error.value" @retry="options.reload">
-      <template #error-hint>
-        <p>Pick a question from <RouterLink :to="{ name: 'my-questions' }">your list</RouterLink> instead.</p>
+    <LoadState
+      :is-loading="options.isLoading.value"
+      :error="options.error.value"
+      :is-missing="options.isMissing.value"
+      @retry="options.reload"
+    >
+      <template #missing>
+        <p>
+          This question doesn't exist or someone else wrote it. Pick one from
+          <RouterLink :to="{ name: 'my-questions' }">your list</RouterLink> instead.
+        </p>
       </template>
       <form v-if="options.data.value" class="form question-form" novalidate @submit.prevent="handleSubmit">
         <p v-if="formMessage" class="form-alert" role="alert">{{ formMessage }}</p>
