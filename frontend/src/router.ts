@@ -20,10 +20,13 @@ import ResultListView from '@/views/ResultListView.vue';
 import ResultView from '@/views/ResultView.vue';
 import SignupView from '@/views/SignupView.vue';
 
+const SITE_NAME = 'Extra Time';
+
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
     guestOnly?: boolean;
+    title?: string;
   }
 }
 
@@ -32,41 +35,47 @@ export const router = createRouter({
   scrollBehavior: () => ({ top: 0 }),
   routes: [
     { path: '/', name: 'home', component: HomeView },
-    { path: '/questions', name: 'questions', component: QuestionListView },
-    { path: '/questions/:id(\\d+)', name: 'question', component: QuestionView, props: readIdParam },
-    { path: '/leaderboard', name: 'leaderboard', component: LeaderboardView },
-    { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true } },
-    { path: '/signup', name: 'signup', component: SignupView, meta: { guestOnly: true } },
-    { path: '/play', name: 'play', component: PlayView, meta: { requiresAuth: true } },
-    { path: '/results', name: 'results', component: ResultListView, meta: { requiresAuth: true } },
+    { path: '/questions', name: 'questions', component: QuestionListView, meta: { title: 'Question bank' } },
+    {
+      path: '/questions/:id(\\d+)',
+      name: 'question',
+      component: QuestionView,
+      props: readIdParam,
+      meta: { title: 'Question' },
+    },
+    { path: '/leaderboard', name: 'leaderboard', component: LeaderboardView, meta: { title: 'Leaderboard' } },
+    { path: '/login', name: 'login', component: LoginView, meta: { guestOnly: true, title: 'Log in' } },
+    { path: '/signup', name: 'signup', component: SignupView, meta: { guestOnly: true, title: 'Sign up' } },
+    { path: '/play', name: 'play', component: PlayView, meta: { requiresAuth: true, title: 'Play' } },
+    { path: '/results', name: 'results', component: ResultListView, meta: { requiresAuth: true, title: 'My results' } },
     {
       path: '/results/:id(\\d+)',
       name: 'result',
       component: ResultView,
       props: readIdParam,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: 'Round result' },
     },
     {
       path: '/my-questions',
       name: 'my-questions',
       component: MyQuestionListView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: 'My questions' },
     },
     {
       path: '/my-questions/new',
       name: 'my-question-new',
       component: MyQuestionFormView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: 'Write a question' },
     },
     {
       path: '/my-questions/:id(\\d+)/edit',
       name: 'my-question-edit',
       component: MyQuestionFormView,
       props: readIdParam,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, title: 'Edit your question' },
     },
-    { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
-    { path: '/:path(.*)*', name: 'not-found', component: NotFoundView },
+    { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true, title: 'Profile' } },
+    { path: '/:path(.*)*', name: 'not-found', component: NotFoundView, meta: { title: 'Page not found' } },
   ],
 });
 
@@ -80,6 +89,14 @@ router.beforeEach(async (to): Promise<RouteLocationRaw | true> => {
     return { name: 'home' };
   }
   return true;
+});
+
+router.afterEach((to, _from, failure) => {
+  // afterEach also runs for cancelled navigations (e.g. "Leave this round?" → Cancel): keep the old title.
+  if (failure) {
+    return;
+  }
+  document.title = to.meta.title ? `${to.meta.title} · ${SITE_NAME}` : SITE_NAME;
 });
 
 function readIdParam(route: RouteLocationNormalized): { id: number } {
