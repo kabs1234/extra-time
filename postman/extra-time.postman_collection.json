@@ -1534,7 +1534,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"question\": {{question_id}},\n  \"text\": \"Italy\",\n  \"is_correct\": false\n}",
+              "raw": "{\n  \"question\": {{question_id}},\n  \"text\": \"France\",\n  \"is_correct\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"

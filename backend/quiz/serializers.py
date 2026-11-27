@@ -14,13 +14,19 @@ ANSWER_FIELDS = ("is_correct",)
 NOT_YOUR_QUESTION = "Only the question's author or staff can change its choices."
 
 
-def choice_set_errors(correct_flags: Sequence[bool]) -> list[str]:
-    """Rules every question's choice set obeys: 2–4 choices, exactly one of them correct."""
+def choice_set_errors(choices: Sequence[tuple[str, bool]]) -> list[str]:
+    """
+    Rules every question's choice set obeys, given as ``(text, is_correct)`` pairs: 2–4 choices,
+    exactly one of them correct, and no two with the same text (ignoring case and outer spaces).
+    """
     errors = []
-    if not MIN_CHOICES <= len(correct_flags) <= MAX_CHOICES:
+    if not MIN_CHOICES <= len(choices) <= MAX_CHOICES:
         errors.append(f"A question needs {MIN_CHOICES} to {MAX_CHOICES} choices.")
-    if sum(correct_flags) != 1:
+    if sum(is_correct for _, is_correct in choices) != 1:
         errors.append("Exactly one choice must be marked correct.")
+    texts = [text.strip().casefold() for text, _ in choices]
+    if len(set(texts)) != len(texts):
+        errors.append("Two choices can't have the same text.")
     return errors
 
 
@@ -79,7 +85,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         ]
 
     def validate_choices(self, choices: list[dict]) -> list[dict]:
-        errors = choice_set_errors([bool(choice.get("is_correct")) for choice in choices])
+        errors = choice_set_errors([(choice["text"], bool(choice.get("is_correct"))) for choice in choices])
         if errors:
             raise serializers.ValidationError(errors)
         return choices
@@ -133,8 +139,9 @@ class ChoiceSerializer(serializers.ModelSerializer):
         if not is_author_or_staff(self.context["request"].user, question):
             raise PermissionDenied(NOT_YOUR_QUESTION)
         is_correct = attrs["is_correct"] if "is_correct" in attrs else bool(self.instance and self.instance.is_correct)
+        text = attrs.get("text", getattr(self.instance, "text", ""))
         siblings = question.choices.exclude(pk=getattr(self.instance, "pk", None))
-        errors = choice_set_errors([*siblings.values_list("is_correct", flat=True), is_correct])
+        errors = choice_set_errors([*siblings.values_list("text", "is_correct"), (text, is_correct)])
         if errors:
             raise serializers.ValidationError({"question": errors})
         return attrs

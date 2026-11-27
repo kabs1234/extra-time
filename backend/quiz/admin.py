@@ -7,12 +7,14 @@ from quiz.serializers import choice_set_errors
 
 
 class ChoiceInlineFormSet(BaseInlineFormSet):
-    """The admin keeps the same rule as the API: 2-4 choices, exactly one correct."""
+    """The admin keeps the same rule as the API: 2-4 choices, exactly one correct, no repeated text."""
 
     def clean(self) -> None:
         super().clean()
         kept_forms = [form for form in self.forms if form.cleaned_data and not form.cleaned_data.get("DELETE")]
-        errors = choice_set_errors([bool(form.cleaned_data.get("is_correct")) for form in kept_forms])
+        errors = choice_set_errors(
+            [(form.cleaned_data.get("text", ""), bool(form.cleaned_data.get("is_correct"))) for form in kept_forms]
+        )
         if errors:
             raise ValidationError(errors)
 

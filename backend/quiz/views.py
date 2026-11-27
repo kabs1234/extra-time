@@ -64,7 +64,7 @@ class ChoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthorOrStaffOrReadOnly]
 
     def perform_destroy(self, choice: Choice) -> None:
-        remaining = choice.question.choices.exclude(pk=choice.pk).values_list("is_correct", flat=True)
+        remaining = choice.question.choices.exclude(pk=choice.pk).values_list("text", "is_correct")
         errors = choice_set_errors(list(remaining))
         if errors:
             raise serializers.ValidationError({"question": errors})

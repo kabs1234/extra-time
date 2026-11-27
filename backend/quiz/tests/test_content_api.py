@@ -140,6 +140,16 @@ class QuestionWriteTests(ContentApiTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertIn("choices", response.json())
 
+    def test_question_rejects_choices_with_the_same_text(self) -> None:
+        self.login_as(self.other)
+        payload = self.question_payload()
+        payload["choices"] = [{"text": "Brazil", "is_correct": True}, {"text": " brazil ", "is_correct": False}]
+
+        response = self.client.post("/api/questions/", payload, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["choices"], ["Two choices can't have the same text."])
+
     def test_question_create_requires_choices(self) -> None:
         self.login_as(self.other)
         payload = self.question_payload()
@@ -186,6 +196,22 @@ class ChoiceWriteTests(ContentApiTestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_author_cannot_add_choice_that_repeats_another(self) -> None:
+        self.login_as(self.author)
+
+        response = self.client.post("/api/choices/", {"question": self.question.id, "text": "URUGUAY"}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["question"], ["Two choices can't have the same text."])
+
+    def test_author_can_save_a_choice_unchanged(self) -> None:
+        self.login_as(self.author)
+        choice = self.question.choices.get(text="Argentina")
+
+        response = self.client.patch(f"/api/choices/{choice.id}/", {"text": "Argentina"}, format="json")
+
+        self.assertEqual(response.status_code, 200)
 
     def test_author_adds_wrong_choice(self) -> None:
         self.login_as(self.author)
@@ -249,6 +275,30 @@ class AdminChoiceRuleTests(ContentApiTestCase):
         response = self.client.post("/admin/quiz/question/add/", form)
 
         self.assertEqual(response.status_code, 200)
+        self.assertFalse(Question.objects.filter(text="Admin question").exists())
+
+    def test_admin_rejects_choices_with_the_same_text(self) -> None:
+        superuser = User.objects.create_superuser("root", password=PASSWORD)
+        self.client.force_login(superuser)
+        form = {
+            "text": "Admin question",
+            "difficulty": "easy",
+            "explanation": "",
+            "era": self.era.id,
+            "author": superuser.id,
+            "choices-TOTAL_FORMS": "2",
+            "choices-INITIAL_FORMS": "0",
+            "choices-MIN_NUM_FORMS": "0",
+            "choices-MAX_NUM_FORMS": "1000",
+            "choices-0-text": "Alpha",
+            "choices-0-is_correct": "on",
+            "choices-1-text": "alpha",
+        }
+
+        response = self.client.post("/admin/quiz/question/add/", form)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Two choices can&#x27;t have the same text.")
         self.assertFalse(Question.objects.filter(text="Admin question").exists())
 
 
