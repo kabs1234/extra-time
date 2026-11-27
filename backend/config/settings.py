@@ -107,6 +107,9 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
+# How long a just-rotated refresh token still works (once more) if the browser never got its successor.
+REFRESH_ROTATION_GRACE = timedelta(seconds=30)
+
 REFRESH_COOKIE_NAME = "refresh_token"
 REFRESH_COOKIE_PATH = "/api/auth/"
 REFRESH_COOKIE_SECURE = env_flag("JWT_COOKIE_SECURE")

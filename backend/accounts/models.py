@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.db import models
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
 
 class Profile(models.Model):
@@ -14,3 +15,18 @@ class Profile(models.Model):
 
     def __str__(self) -> str:
         return f"Profile of {self.user}"
+
+
+class RefreshRotation(models.Model):
+    """
+    Which refresh token a rotation replaced with which. If the browser drops the response to a
+    refresh (a reload while it is in flight), it still holds the old, now blacklisted token; for a
+    short grace period the server accepts that token by rotating its successor instead.
+    """
+
+    predecessor = models.OneToOneField(OutstandingToken, on_delete=models.CASCADE, related_name="+")
+    successor = models.ForeignKey(OutstandingToken, on_delete=models.CASCADE, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"{self.predecessor.jti} -> {self.successor.jti}"

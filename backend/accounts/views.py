@@ -7,18 +7,21 @@ an expired one in the header must not block a login or a refresh.
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenBackendError, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+from rest_framework_simplejwt.state import token_backend
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from accounts.cookies import blacklist_all_for, clear_refresh_cookie, set_refresh_cookie
+from accounts.models import RefreshRotation
 from accounts.serializers import (
     AccessTokenSerializer,
     DeleteAccountSerializer,
@@ -56,13 +59,8 @@ def refresh_rejected(refresh: str | None) -> Response:
 
 
 def is_rotated_away(refresh: str | None) -> bool:
-    if not refresh:
-        return False
-    try:
-        token_id = RefreshToken(refresh, verify=False)["jti"]
-    except (TokenError, KeyError):
-        return False
-    return BlacklistedToken.objects.filter(token__jti=token_id).exists()
+    jti = token_id(refresh) if refresh else None
+    return jti is not None and BlacklistedToken.objects.filter(token__jti=jti).exists()
 
 
 class SignupView(generics.CreateAPIView):
@@ -95,14 +93,60 @@ class RefreshView(generics.GenericAPIView):
         refresh = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not refresh:
             return refresh_rejected(refresh)
-        serializer = TokenRefreshSerializer(data={"refresh": refresh})
-        try:
-            serializer.is_valid(raise_exception=True)
-        except (TokenError, AuthenticationFailed):
+        tokens = rotate(refresh) or rotate(recent_successor(refresh))
+        if tokens is None:
             return refresh_rejected(refresh)
-        response = Response({"access": serializer.validated_data["access"]})
-        set_refresh_cookie(response, serializer.validated_data["refresh"])
+        response = Response({"access": tokens["access"]})
+        set_refresh_cookie(response, tokens["refresh"])
         return response
+
+
+def rotate(refresh: str | None) -> dict[str, str] | None:
+    """Swap a valid refresh token for a new pair and remember the swap; None if the token is dead."""
+    if refresh is None:
+        return None
+    serializer = TokenRefreshSerializer(data={"refresh": refresh})
+    try:
+        serializer.is_valid(raise_exception=True)
+    except (TokenError, AuthenticationFailed):
+        return None
+    tokens = serializer.validated_data
+    remember_rotation(refresh, tokens["refresh"])
+    return tokens
+
+
+def remember_rotation(old: str, new: str) -> None:
+    """Record that ``new`` replaced ``old``, so a lost response can be recovered (see ``recent_successor``)."""
+    predecessor = OutstandingToken.objects.filter(jti=token_id(old)).first()
+    successor = OutstandingToken.objects.filter(jti=token_id(new)).first()
+    if predecessor and successor:
+        RefreshRotation.objects.update_or_create(predecessor=predecessor, defaults={"successor": successor})
+
+
+def recent_successor(refresh: str) -> str | None:
+    """
+    The token that replaced this one, if the swap happened within the grace period. Logging out
+    or changing the password blacklists the successor too, so rotating it then still fails.
+    """
+    try:
+        claims = token_backend.decode(refresh, verify=True)
+    except TokenBackendError:
+        return None
+    since = timezone.now() - settings.REFRESH_ROTATION_GRACE
+    rotation = (
+        RefreshRotation.objects.select_related("successor")
+        .filter(predecessor__jti=claims.get("jti"), created_at__gte=since)
+        .first()
+    )
+    return rotation.successor.token if rotation else None
+
+
+def token_id(refresh: str) -> str | None:
+    """The token's ``jti`` claim, read without checking expiry or the blacklist; None if unreadable."""
+    try:
+        return RefreshToken(refresh, verify=False)["jti"]
+    except (TokenError, KeyError):
+        return None
 
 
 class LogoutView(generics.GenericAPIView):
